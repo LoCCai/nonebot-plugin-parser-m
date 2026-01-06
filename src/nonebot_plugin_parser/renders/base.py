@@ -60,57 +60,34 @@ class BaseRenderer(ABC):
 
         for cont in chain(result.contents, result.repost.contents if result.repost else ()):
             match cont:
-                case VideoContent():
-                    logger.debug(f"处理VideoContent，delay_send_media={pconfig.delay_send_media}, lazy_download={pconfig.delay_send_lazy_download}")
+                case VideoContent() | AudioContent():
+                    logger.debug(f"处理{type(cont).__name__}，delay_send_media={pconfig.delay_send_media}, lazy_download={pconfig.delay_send_lazy_download}")
                     if pconfig.delay_send_media:
+                        # 延迟发送模式：缓存MediaContent对象或路径
                         if pconfig.delay_send_lazy_download:
                             # 真正的延迟下载，缓存MediaContent对象，不立即下载
-                            logger.debug(f"延迟发送视频，缓存MediaContent对象，不立即下载")
-                            media_contents.append((VideoContent, cont))
+                            logger.debug(f"延迟发送{type(cont).__name__}，缓存MediaContent对象，不立即下载")
+                            media_contents.append((type(cont), cont))
                         else:
                             # 解析时自动下载，但延迟发送
                             try:
                                 path = await cont.get_path()
-                                logger.debug(f"延迟发送视频，已下载，缓存路径: {path}")
-                                media_contents.append((VideoContent, path))
+                                logger.debug(f"延迟发送{type(cont).__name__}，已下载，缓存路径: {path}")
+                                media_contents.append((type(cont), path))
                             except (DownloadLimitException, ZeroSizeException):
                                 continue
                             except DownloadException:
                                 failed_count += 1
                                 continue
                     else:
+                        # 立即发送模式
                         try:
                             path = await cont.get_path()
-                            logger.debug(f"立即发送视频: {path}")
-                            yield UniMessage(UniHelper.video_seg(path))
-                        except (DownloadLimitException, ZeroSizeException):
-                            continue
-                        except DownloadException:
-                            failed_count += 1
-                            continue
-                case AudioContent():
-                    logger.debug(f"处理AudioContent，delay_send_media={pconfig.delay_send_media}, lazy_download={pconfig.delay_send_lazy_download}")
-                    if pconfig.delay_send_media:
-                        if pconfig.delay_send_lazy_download:
-                            # 真正的延迟下载，缓存MediaContent对象，不立即下载
-                            logger.debug(f"延迟发送音频，缓存MediaContent对象，不立即下载")
-                            media_contents.append((AudioContent, cont))
-                        else:
-                            # 解析时自动下载，但延迟发送
-                            try:
-                                path = await cont.get_path()
-                                logger.debug(f"延迟发送音频，已下载，缓存路径: {path}")
-                                media_contents.append((AudioContent, path))
-                            except (DownloadLimitException, ZeroSizeException):
-                                continue
-                            except DownloadException:
-                                failed_count += 1
-                                continue
-                    else:
-                        try:
-                            path = await cont.get_path()
-                            logger.debug(f"立即发送音频: {path}")
-                            yield UniMessage(UniHelper.record_seg(path))
+                            logger.debug(f"立即发送{type(cont).__name__}: {path}")
+                            if isinstance(cont, VideoContent):
+                                yield UniMessage(UniHelper.video_seg(path))
+                            elif isinstance(cont, AudioContent):
+                                yield UniMessage(UniHelper.record_seg(path))
                         except (DownloadLimitException, ZeroSizeException):
                             continue
                         except DownloadException:
