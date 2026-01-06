@@ -85,6 +85,7 @@ class Module(Struct):
     module_author: Author | None = None
     module_content: Content | None = None
     module_stat: dict[str, Any] | None = None
+    module_title: dict[str, Any] | None = None
 
 
 class Basic(Struct):
@@ -127,6 +128,12 @@ class OpusItem(Struct):
     def gen_text_img(self) -> Generator[TextNode | ImageNode, None, None]:
         """生成图文节点（保持顺序）"""
         for module in self.item.modules:
+            # 处理标题模块
+            if module.module_type == "MODULE_TYPE_TITLE" and hasattr(module, "module_title") and module.module_title:
+                text_content = module.module_title.get("text", "").strip()
+                if text_content:
+                    yield TextNode(text=text_content)
+            
             # 处理内容模块
             if module.module_type == "MODULE_TYPE_CONTENT" and module.module_content:
                 for paragraph in module.module_content.paragraphs:
