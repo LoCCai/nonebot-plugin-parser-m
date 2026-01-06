@@ -2,6 +2,7 @@ import datetime
 from typing import Any
 from pathlib import Path
 from typing_extensions import override
+from ..config import _nickname
 
 from nonebot import require
 
@@ -35,6 +36,7 @@ class HtmlRenderer(ImageRenderer):
             templates={
                 "result": template_data,
                 "rendering_time": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                "bot_name": _nickname,
             },
             pages={
                 "viewport": {"width": 800, "height": 100},
