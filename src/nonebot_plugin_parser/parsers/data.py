@@ -158,7 +158,7 @@ class ParseResult:
     """转发的内容"""
     render_image: Path | None = None
     """渲染图片"""
-    media_contents: list[tuple[type, Path]] = field(default_factory=list)
+    media_contents: list[tuple[type, 'MediaContent | Path']] = field(default_factory=list)
     """延迟发送的媒体内容"""
 
     @property

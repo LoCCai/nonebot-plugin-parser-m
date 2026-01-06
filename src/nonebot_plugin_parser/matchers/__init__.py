@@ -1,5 +1,6 @@
 import re
 from typing import TypeVar
+from pathlib import Path
 
 from nonebot import logger, get_driver, on_command
 from nonebot.rule import Rule
@@ -261,11 +262,11 @@ async def delay_media_trigger_handler():
         try:
             path = None
             if isinstance(media_item, Path):
-                # 已经下载好的媒体，直接发送
+                # 已经是 Path 类型，直接使用
                 path = media_item
                 logger.debug(f"发送已下载的延迟媒体: {path}")
             else:
-                # 未下载的媒体，需要先下载
+                # 是 MediaContent 类型，需要先获取 Path
                 path = await media_item.get_path()
                 logger.debug(f"下载并发送延迟媒体: {path}")
             
@@ -357,11 +358,11 @@ async def handle_group_msg_emoji_like(event):
             try:
                 path = None
                 if isinstance(media_item, Path):
-                    # 已经下载好的媒体，直接发送
+                    # 已经是 Path 类型，直接使用
                     path = media_item
                     logger.debug(f"发送已下载的延迟媒体: {path}")
                 else:
-                    # 未下载的媒体，需要先下载
+                    # 是 MediaContent 类型，需要先获取 Path
                     path = await media_item.get_path()
                     logger.debug(f"下载并发送延迟媒体: {path}")
                 

@@ -12,22 +12,19 @@ import nonebot_plugin_localstore as _store
 
 from nonebot.plugin import PluginMetadata
 
-__plugin_meta__ = PluginMetadata(
-    name="nonebot-plugin-parser",
-    description="Nonebot2 链接分享自动解析插件",
-    usage="无需任何命令，直接发送链接即可",
-    homepage="https://github.com/fllesser/nonebot-plugin-parser",
-    type="application",
-    config=lambda: Config,
-    supported_adapters={"~onebot.v11", "~onebot.v12"},
-)
 
+# 默认配置
+ELK_SH_CDN = "https://emojicdn.elk.sh"
+MQRIO_DEV_CDN = "https://emoji-cdn.mqrio.dev"
 
+_driver = get_driver()
+_nickname = next(iter(_driver.config.nickname), "nonebot-plugin-parser")
 _cache_dir: Path = _store.get_plugin_cache_dir()
 _config_dir: Path = _store.get_plugin_config_dir()
 _data_dir: Path = _store.get_plugin_data_dir()
 
 
+# 定义Config类
 class Config(BaseModel):
     parser_bili_ck: str | None = None
     """bilibili cookies"""
@@ -63,7 +60,7 @@ class Config(BaseModel):
     """是否需要转发原文内容"""
     parser_emoji_cdn: str = ELK_SH_CDN
     """Pilmoji 表情 CDN"""
-    parser_emoji_style: EmojiStyle = EmojiStyle.FACEBOOK
+    parser_emoji_style: str = "facebook"
     """Pilmoji 表情风格"""
     parser_delay_send_media: bool = False
     """是否延迟发送视频/音频，需要用户发送特定表情或点赞特定表情后才发送"""
@@ -172,7 +169,8 @@ class Config(BaseModel):
     @property
     def emoji_style(self) -> EmojiStyle:
         """Pilmoji 表情风格"""
-        return self.parser_emoji_style
+        from apilmoji import EmojiStyle as ApilmojiEmojiStyle
+        return ApilmojiEmojiStyle(self.parser_emoji_style)
 
     @property
     def delay_send_media(self) -> bool:
@@ -195,6 +193,19 @@ class Config(BaseModel):
         return self.parser_delay_send_lazy_download
 
 
+# 定义插件元数据
+__plugin_meta__ = PluginMetadata(
+    name="nonebot-plugin-parser",
+    description="Nonebot2 链接分享自动解析插件",
+    usage="无需任何命令，直接发送链接即可",
+    homepage="https://github.com/fllesser/nonebot-plugin-parser",
+    type="application",
+    config=Config,
+    supported_adapters={"~onebot.v11", "~onebot.v12"},
+)
+
+
+# 初始化配置实例
 _driver = get_driver()
 pconfig: Config = get_plugin_config(Config)
 """插件配置"""

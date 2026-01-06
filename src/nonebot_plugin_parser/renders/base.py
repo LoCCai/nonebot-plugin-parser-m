@@ -10,13 +10,14 @@ from nonebot import logger
 
 from ..config import pconfig
 from ..helper import UniHelper, UniMessage, ForwardNodeInner
-from ..parsers import (
+from ..parsers.data import (
     ParseResult,
     AudioContent,
     ImageContent,
     VideoContent,
     DynamicContent,
     GraphicsContent,
+    MediaContent,
 )
 from ..exception import DownloadException, ZeroSizeException, DownloadLimitException
 
