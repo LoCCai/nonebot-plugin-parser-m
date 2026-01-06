@@ -256,14 +256,32 @@ async def delay_media_trigger_handler():
     result = _RESULT_CACHE[latest_url]
 
     # 发送延迟的媒体内容
-    for media_type, path in result.media_contents:
-        if media_type == VideoContent:
-            await UniMessage(UniHelper.video_seg(path)).send()
-        elif media_type == AudioContent:
-            await UniMessage(UniHelper.record_seg(path)).send()
-
+    sent = False
+    for media_type, media_item in result.media_contents:
+        try:
+            path = None
+            if isinstance(media_item, Path):
+                # 已经下载好的媒体，直接发送
+                path = media_item
+                logger.debug(f"发送已下载的延迟媒体: {path}")
+            else:
+                # 未下载的媒体，需要先下载
+                path = await media_item.get_path()
+                logger.debug(f"下载并发送延迟媒体: {path}")
+            
+            if media_type == VideoContent:
+                await UniMessage(UniHelper.video_seg(path)).send()
+                sent = True
+            elif media_type == AudioContent:
+                await UniMessage(UniHelper.record_seg(path)).send()
+                sent = True
+        except Exception as e:
+            logger.error(f"发送延迟媒体失败: {e}")
+    
     # 清空当前结果的媒体内容
     result.media_contents.clear()
+    
+    return sent
 
 
 # 监听group_msg_emoji_like事件，处理点赞触发
@@ -335,14 +353,27 @@ async def handle_group_msg_emoji_like(event):
 
         # 发送延迟的媒体内容
         sent = False
-        for media_type, path in result.media_contents:
-            if media_type == VideoContent:
-                await UniMessage(UniHelper.video_seg(path)).send()
-                sent = True
-            elif media_type == AudioContent:
-                await UniMessage(UniHelper.record_seg(path)).send()
-                sent = True
-
+        for media_type, media_item in result.media_contents:
+            try:
+                path = None
+                if isinstance(media_item, Path):
+                    # 已经下载好的媒体，直接发送
+                    path = media_item
+                    logger.debug(f"发送已下载的延迟媒体: {path}")
+                else:
+                    # 未下载的媒体，需要先下载
+                    path = await media_item.get_path()
+                    logger.debug(f"下载并发送延迟媒体: {path}")
+                
+                if media_type == VideoContent:
+                    await UniMessage(UniHelper.video_seg(path)).send()
+                    sent = True
+                elif media_type == AudioContent:
+                    await UniMessage(UniHelper.record_seg(path)).send()
+                    sent = True
+            except Exception as e:
+                logger.error(f"发送延迟媒体失败: {e}")
+        
         # 清空当前结果的媒体内容
         result.media_contents.clear()
 

@@ -53,50 +53,100 @@ class BaseRenderer(ABC):
         failed_count = 0
         forwardable_segs: list[ForwardNodeInner] = []
         dynamic_segs: list[ForwardNodeInner] = []
-        media_contents: list[tuple[type, Path]] = []
+        
+        # 用于存储延迟发送的媒体内容
+        media_contents: list[tuple[type, MediaContent | Path]] = []
 
         for cont in chain(result.contents, result.repost.contents if result.repost else ()):
-            try:
-                path = await cont.get_path()
-            # 继续渲染其他内容, 类似之前 gather (return_exceptions=True) 的处理
-            except (DownloadLimitException, ZeroSizeException):
-                # 预期异常，不抛出
-                # yield UniMessage(e.message)
-                continue
-            except DownloadException:
-                failed_count += 1
-                continue
-
             match cont:
                 case VideoContent():
-                    logger.debug(f"处理VideoContent，delay_send_media={pconfig.delay_send_media}")
+                    logger.debug(f"处理VideoContent，delay_send_media={pconfig.delay_send_media}, lazy_download={pconfig.delay_send_lazy_download}")
                     if pconfig.delay_send_media:
-                        # 延迟发送，先缓存
-                        logger.debug(f"延迟发送视频，缓存路径: {path}")
-                        media_contents.append((VideoContent, path))
+                        if pconfig.delay_send_lazy_download:
+                            # 真正的延迟下载，缓存MediaContent对象，不立即下载
+                            logger.debug(f"延迟发送视频，缓存MediaContent对象，不立即下载")
+                            media_contents.append((VideoContent, cont))
+                        else:
+                            # 解析时自动下载，但延迟发送
+                            try:
+                                path = await cont.get_path()
+                                logger.debug(f"延迟发送视频，已下载，缓存路径: {path}")
+                                media_contents.append((VideoContent, path))
+                            except (DownloadLimitException, ZeroSizeException):
+                                continue
+                            except DownloadException:
+                                failed_count += 1
+                                continue
                     else:
-                        logger.debug(f"立即发送视频: {path}")
-                        yield UniMessage(UniHelper.video_seg(path))
+                        try:
+                            path = await cont.get_path()
+                            logger.debug(f"立即发送视频: {path}")
+                            yield UniMessage(UniHelper.video_seg(path))
+                        except (DownloadLimitException, ZeroSizeException):
+                            continue
+                        except DownloadException:
+                            failed_count += 1
+                            continue
                 case AudioContent():
-                    logger.debug(f"处理AudioContent，delay_send_media={pconfig.delay_send_media}")
+                    logger.debug(f"处理AudioContent，delay_send_media={pconfig.delay_send_media}, lazy_download={pconfig.delay_send_lazy_download}")
                     if pconfig.delay_send_media:
-                        # 延迟发送，先缓存
-                        logger.debug(f"延迟发送音频，缓存路径: {path}")
-                        media_contents.append((AudioContent, path))
+                        if pconfig.delay_send_lazy_download:
+                            # 真正的延迟下载，缓存MediaContent对象，不立即下载
+                            logger.debug(f"延迟发送音频，缓存MediaContent对象，不立即下载")
+                            media_contents.append((AudioContent, cont))
+                        else:
+                            # 解析时自动下载，但延迟发送
+                            try:
+                                path = await cont.get_path()
+                                logger.debug(f"延迟发送音频，已下载，缓存路径: {path}")
+                                media_contents.append((AudioContent, path))
+                            except (DownloadLimitException, ZeroSizeException):
+                                continue
+                            except DownloadException:
+                                failed_count += 1
+                                continue
                     else:
-                        logger.debug(f"立即发送音频: {path}")
-                        yield UniMessage(UniHelper.record_seg(path))
+                        try:
+                            path = await cont.get_path()
+                            logger.debug(f"立即发送音频: {path}")
+                            yield UniMessage(UniHelper.record_seg(path))
+                        except (DownloadLimitException, ZeroSizeException):
+                            continue
+                        except DownloadException:
+                            failed_count += 1
+                            continue
                 case ImageContent():
-                    forwardable_segs.append(UniHelper.img_seg(path))
+                    try:
+                        path = await cont.get_path()
+                        forwardable_segs.append(UniHelper.img_seg(path))
+                    except (DownloadLimitException, ZeroSizeException):
+                        continue
+                    except DownloadException:
+                        failed_count += 1
+                        continue
                 case DynamicContent():
-                    dynamic_segs.append(UniHelper.video_seg(path))
+                    try:
+                        path = await cont.get_path()
+                        dynamic_segs.append(UniHelper.video_seg(path))
+                    except (DownloadLimitException, ZeroSizeException):
+                        continue
+                    except DownloadException:
+                        failed_count += 1
+                        continue
                 case GraphicsContent() as graphics:
-                    graphics_msg = UniHelper.img_seg(path)
-                    if graphics.text is not None:
-                        graphics_msg = graphics.text + graphics_msg
-                    if graphics.alt is not None:
-                        graphics_msg = graphics_msg + graphics.alt
-                    forwardable_segs.append(graphics_msg)
+                    try:
+                        path = await cont.get_path()
+                        graphics_msg = UniHelper.img_seg(path)
+                        if graphics.text is not None:
+                            graphics_msg = graphics.text + graphics_msg
+                        if graphics.alt is not None:
+                            graphics_msg = graphics_msg + graphics.alt
+                        forwardable_segs.append(graphics_msg)
+                    except (DownloadLimitException, ZeroSizeException):
+                        continue
+                    except DownloadException:
+                        failed_count += 1
+                        continue
 
         # 如果有延迟发送的媒体，存储到解析结果中
         if media_contents:
