@@ -46,6 +46,8 @@ class Config(BaseModel):
     """是否在解析结果中添加原始URL二维码"""
     parser_disabled_platforms: list[PlatformEnum] = []
     """禁用的解析器"""
+    parser_blacklist_users: list[str] = []
+    """黑名单用户列表，这些用户触发的解析将被忽略"""
     parser_bili_video_codes: list[VideoCodecs] = [
         VideoCodecs.AVC,
         VideoCodecs.AV1,
@@ -198,6 +200,11 @@ class Config(BaseModel):
     def delay_send_lazy_download(self) -> bool:
         """是否开启懒下载模式"""
         return self.parser_delay_send_lazy_download
+
+    @property
+    def blacklist_users(self) -> list[str]:
+        """黑名单用户列表"""
+        return self.parser_blacklist_users
 
 
 # 定义插件元数据

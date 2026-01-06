@@ -13,7 +13,7 @@ from nonebot_plugin_uninfo import Session, UniSession
 from nonebot_plugin_alconna.uniseg import Hyper, UniMsg
 
 from .filter import is_enabled
-from ..config import gconfig
+from ..config import gconfig, pconfig
 
 # 统一的状态键
 PSR_SEARCHED_KEY: Literal["psr-searched"] = "psr-searched"
@@ -146,7 +146,12 @@ class KeywordRegexRule:
     def __hash__(self) -> int:
         return hash(frozenset(self.key_pattern_list))
 
-    async def __call__(self, message: UniMsg, state: T_State) -> bool:
+    async def __call__(self, message: UniMsg, state: T_State, sess: Session | None = UniSession()) -> bool:
+        # 检查用户是否在黑名单中
+        if sess and sess.user.id in pconfig.blacklist_users:
+            logger.debug(f"User {sess.user.id} is in blacklist, ignoring parse request")
+            return False
+        
         text = _extract_text(message)
         if not text:
             return False
