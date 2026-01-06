@@ -237,7 +237,9 @@ class BilibiliParser(BaseParser):
                 }
             # 检查是否有浏览量字段
             if hasattr(dynamic_info.modules, "module_author") and hasattr(dynamic_info.modules.module_author, "views_text"):
-                stats["play"] = dynamic_info.modules.module_author.views_text
+                views_value = dynamic_info.modules.module_author.views_text
+                if views_value is not None:
+                    stats["play"] = views_value
         except Exception:
             pass
 
@@ -422,8 +424,10 @@ class BilibiliParser(BaseParser):
                         }
                     # 检查是否有浏览量字段
                     elif module.module_type == "MODULE_TYPE_AUTHOR" and module.module_author:
-                        if hasattr(module.module_author, "views_text") and module.module_author.views_text:
-                            stats["play"] = module.module_author.views_text
+                        if hasattr(module.module_author, "views_text"):
+                            views_value = module.module_author.views_text
+                            if views_value is not None:
+                                stats["play"] = views_value
         except Exception:
             pass
 
