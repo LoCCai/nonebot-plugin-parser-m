@@ -298,8 +298,8 @@ async def handle_group_msg_emoji_like(event):
 
     # 检查是否是group_msg_emoji_like事件
     is_group_emoji_like = False
-    emoji_id = ""
-    liked_message_id = ""
+    emoji_id = 0
+    liked_message_id = 0
 
     # 处理不同形式的事件对象（字典或对象）
     if isinstance(event, dict):
@@ -319,7 +319,9 @@ async def handle_group_msg_emoji_like(event):
                     emoji_id = event.likes[0].emoji_id
             if hasattr(event, "message_id"):
                 liked_message_id = event.message_id
-
+    emoji_id = int(emoji_id)
+    liked_message_id = int(liked_message_id)
+    logger.debug(f"emoji_id:{emoji_id} | liked_message_id:{liked_message_id}")
     # 检查是否是group_msg_emoji_like事件且表情ID有效
     if not is_group_emoji_like or not emoji_id:
         return

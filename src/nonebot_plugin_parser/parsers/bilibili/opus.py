@@ -127,6 +127,7 @@ class OpusItem(Struct):
     def gen_text_img(self) -> Generator[TextNode | ImageNode, None, None]:
         """生成图文节点（保持顺序）"""
         for module in self.item.modules:
+            # 处理内容模块
             if module.module_type == "MODULE_TYPE_CONTENT" and module.module_content:
                 for paragraph in module.module_content.paragraphs:
                     # 处理文本段落
@@ -134,7 +135,7 @@ class OpusItem(Struct):
                         text_content = self._extract_text_from_nodes(paragraph.text.nodes)
                         text_content = text_content.strip()
                         if text_content:
-                            yield TextNode(text="\n\n" + text_content)
+                            yield TextNode(text=text_content)
 
                     # 处理图片段落
                     if paragraph.pic and paragraph.pic.pics:
@@ -145,9 +146,20 @@ class OpusItem(Struct):
         """从节点列表中提取文本内容"""
         text_content = ""
         for node in nodes:
-            if node.get("type") in [
-                "TEXT_NODE_TYPE_WORD",
-                "TEXT_NODE_TYPE_RICH",
-            ] and node.get("word"):
-                text_content += node["word"].get("words", "")
+            # 处理不同类型的文本节点
+            if node.get("type") in ["TEXT_NODE_TYPE_WORD", "TEXT_NODE_TYPE_RICH"]:
+                if node.get("word"):
+                    text_content += node["word"].get("words", "")
+            elif node.get("type") == "TEXT_NODE_TYPE_TEXT":
+                # 直接文本类型
+                text_content += node.get("text", "")
+            elif node.get("type") == "TEXT_NODE_TYPE_PLAIN":
+                # 普通文本类型
+                text_content += node.get("content", "")
+            else:
+                # 其他类型的文本节点，尝试获取文本内容
+                if isinstance(node.get("word"), dict):
+                    text_content += node["word"].get("words", "")
+                elif isinstance(node.get("text"), str):
+                    text_content += node["text"]
         return text_content

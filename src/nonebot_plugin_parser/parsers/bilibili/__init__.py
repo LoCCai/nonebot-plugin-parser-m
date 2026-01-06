@@ -373,6 +373,35 @@ class BilibiliParser(BaseParser):
                 full_text_list.append(node.text)
 
         full_text = "\n".join(full_text_list).strip()
+        
+        # 如果没有提取到文本，尝试从原始结构体中直接获取
+        if not full_text:
+            # 遍历所有模块，寻找可能的文本内容
+            if hasattr(opus_data.item, "modules"):
+                for module in opus_data.item.modules:
+                    # 检查内容模块是否有直接的文本
+                    if module.module_type == "MODULE_TYPE_CONTENT" and module.module_content:
+                        for paragraph in module.module_content.paragraphs:
+                            # 直接检查段落是否有文本属性
+                            if hasattr(paragraph, "text") and paragraph.text:
+                                # 直接检查文本是否有内容
+                                if hasattr(paragraph.text, "nodes") and paragraph.text.nodes:
+                                    # 尝试直接提取文本内容
+                                    for node in paragraph.text.nodes:
+                                        if isinstance(node, dict):
+                                            # 检查不同类型的文本节点
+                                            if node.get("type") in ["TEXT_NODE_TYPE_WORD", "TEXT_NODE_TYPE_RICH"]:
+                                                if isinstance(node.get("word"), dict):
+                                                    full_text += node["word"].get("words", "")
+                                            elif node.get("type") == "TEXT_NODE_TYPE_TEXT":
+                                                full_text += node.get("text", "")
+                                            elif node.get("type") == "TEXT_NODE_TYPE_PLAIN":
+                                                full_text += node.get("content", "")
+                                            # 其他可能的文本节点类型
+                                            elif isinstance(node.get("word"), dict):
+                                                full_text += node["word"].get("words", "")
+                                            elif isinstance(node.get("text"), str):
+                                                full_text += node["text"]
 
         # 提取统计数据
         stats = {}
