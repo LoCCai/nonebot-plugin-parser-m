@@ -42,6 +42,8 @@ class Config(BaseModel):
     """视频/音频最大时长"""
     parser_append_url: bool = False
     """是否在解析结果中添加原始URL"""
+    parser_append_qrcode: bool = False
+    """是否在解析结果中添加原始URL二维码"""
     parser_disabled_platforms: list[PlatformEnum] = []
     """禁用的解析器"""
     parser_bili_video_codes: list[VideoCodecs] = [
@@ -150,6 +152,11 @@ class Config(BaseModel):
     def append_url(self) -> bool:
         """是否在解析结果中添加原始URL"""
         return self.parser_append_url
+
+    @property
+    def append_qrcode(self) -> bool:
+        """是否在解析结果中添加原始URL二维码"""
+        return self.parser_append_qrcode
 
     @property
     def custom_font(self) -> Path | None:

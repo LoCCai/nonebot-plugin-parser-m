@@ -175,6 +175,10 @@ class BaseRenderer(ABC):
     def append_url(self) -> bool:
         return pconfig.append_url
 
+    @property
+    def append_qrcode(self) -> bool:
+        return pconfig.append_qrcode
+
 
 class ImageRenderer(BaseRenderer):
     """图片渲染器"""

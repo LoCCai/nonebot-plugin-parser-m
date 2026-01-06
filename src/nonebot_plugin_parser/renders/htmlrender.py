@@ -1,8 +1,10 @@
 import datetime
+import qrcode
+from io import BytesIO
 from typing import Any
 from pathlib import Path
 from typing_extensions import override
-from ..config import _nickname
+from ..config import _nickname, pconfig
 
 from nonebot import require
 
@@ -102,4 +104,30 @@ class HtmlRenderer(ImageRenderer):
         if result.repost:
             data["repost"] = await self._resolve_parse_result(result.repost)
 
+        # 添加二维码支持
+        if pconfig.append_qrcode and result.url:
+            # 生成二维码
+            qr = qrcode.QRCode(
+                version=1,
+                error_correction=qrcode.constants.ERROR_CORRECT_L,
+                box_size=10,
+                border=4,
+            )
+            qr.add_data(result.url)
+            qr.make(fit=True)
+            img = qr.make_image(fill_color="black", back_color="white")
+            
+            # 保存二维码到内存
+            buffer = BytesIO()
+            img.save(buffer, format="PNG")
+            buffer.seek(0)
+            
+            # 生成临时文件路径
+            qr_path = self.templates_dir / f"qr_{datetime.datetime.now().timestamp()}.png"
+            with open(qr_path, "wb") as f:
+                f.write(buffer.getvalue())
+            
+            # 添加二维码路径到模板数据
+            data["qr_code_path"] = qr_path.as_uri()
+        
         return data

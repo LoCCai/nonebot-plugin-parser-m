@@ -319,6 +319,11 @@
         {% if not is_repost and result.platform and result.platform.logo_path %}
         <img src="{{ result.platform.logo_path }}" class="platform-logo" alt="{{ result.platform.display_name }}">
         {% endif %}
+        
+        {# QR Code #}
+        {% if not is_repost and result.qr_code_path %}
+        <img src="{{ result.qr_code_path }}" class="qrcode" alt="QR Code" style="width: 40px; height: 40px; border-radius: 4px; margin-left: auto;" />
+        {% endif %}
       </div>
       {% endif %}
 
