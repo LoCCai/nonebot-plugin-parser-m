@@ -159,7 +159,7 @@ class SectionData:
 class HeaderSectionData(SectionData):
     """Header 部分数据"""
 
-    avatar: PILImage | None
+    avatar: Image.Image | None
     name: str
     time: str | None
     text_height: int
@@ -176,7 +176,7 @@ class TitleSectionData(SectionData):
 class CoverSectionData(SectionData):
     """封面部分数据"""
 
-    cover_img: PILImage
+    cover_img: Image.Image
 
 
 @dataclass(eq=False, frozen=True, slots=True)
@@ -197,14 +197,14 @@ class ExtraSectionData(SectionData):
 class RepostSectionData(SectionData):
     """转发部分数据"""
 
-    scaled_image: PILImage
+    scaled_image: Image.Image
 
 
 @dataclass(eq=False, frozen=True, slots=True)
 class ImageGridSectionData(SectionData):
     """图片网格部分数据"""
 
-    images: list[PILImage]
+    images: list[Image.Image]
     cols: int
     rows: int
     has_more: bool
@@ -216,7 +216,7 @@ class GraphicsSectionData(SectionData):
     """图文内容部分数据"""
 
     text_lines: list[str]
-    image: PILImage
+    image: Image.Image
     alt_text: str | None = None
 
 
@@ -230,9 +230,9 @@ class RenderContext:
     """卡片宽度"""
     content_width: int
     """内容宽度"""
-    image: PILImage
+    image: Image.Image
     """当前图像"""
-    draw: PILImageDraw
+    draw: ImageDraw.ImageDraw
     """绘图对象"""
     not_repost: bool = True
     """是否为非转发内容"""
@@ -338,7 +338,7 @@ class CommonRenderer(ImageRenderer):
     def _load_video_button(cls):
         """预加载视频按钮"""
         with Image.open(cls.DEFAULT_VIDEO_BUTTON_PATH) as img:
-            cls.video_button_image: PILImage = img.convert("RGBA")
+            cls.video_button_image: Image.Image = img.convert("RGBA")
 
         # 设置透明度为 30%
         alpha = cls.video_button_image.split()[-1]  # 获取 alpha 通道
@@ -350,7 +350,7 @@ class CommonRenderer(ImageRenderer):
         """预加载平台 logo"""
         from ..constants import PlatformEnum
 
-        cls.platform_logos: dict[str, PILImage] = {}
+        cls.platform_logos: dict[str, Image.Image] = {}
         for platform_name in PlatformEnum:
             logo_path = cls.RESOURCES_DIR / f"{platform_name}.png"
             if logo_path.exists():
@@ -358,7 +358,7 @@ class CommonRenderer(ImageRenderer):
                     cls.platform_logos[str(platform_name)] = img.convert("RGBA")
 
     @staticmethod
-    def generate_qr_code(url: str, size: int = 200) -> PILImage | None:
+    def generate_qr_code(url: str, size: int = 200) -> Image.Image | None:
         """生成QR码图片
 
         Args:
@@ -446,7 +446,7 @@ class CommonRenderer(ImageRenderer):
         self,
         result: ParseResult,
         not_repost: bool = True,
-    ) -> PILImage:
+    ) -> Image.Image:
         """创建卡片图片（内部方法，用于递归调用）
 
         Args:
@@ -494,7 +494,7 @@ class CommonRenderer(ImageRenderer):
         self,
         cover_path: Path | None,
         content_width: int,
-    ) -> PILImage | None:
+    ) -> Image.Image | None:
         """加载并调整封面尺寸
 
         Args:
@@ -538,7 +538,7 @@ class CommonRenderer(ImageRenderer):
             return cover_img
 
     @suppress_exception
-    def _load_and_process_avatar(self, avatar: Path | None) -> PILImage | None:
+    def _load_and_process_avatar(self, avatar: Path | None) -> Image.Image | None:
         """加载并处理头像（圆形裁剪，带抗锯齿）"""
         if not avatar or not avatar.exists():
             return None
@@ -813,7 +813,7 @@ class CommonRenderer(ImageRenderer):
         img_path: Path,
         content_width: int,
         img_count: int,
-    ) -> PILImage | None:
+    ) -> Image.Image | None:
         """加载并处理网格图片
 
         Args:
@@ -871,7 +871,7 @@ class CommonRenderer(ImageRenderer):
 
             return img
 
-    def _crop_to_square(self, img: PILImage) -> PILImage:
+    def _crop_to_square(self, img: Image.Image) -> Image.Image:
         """将图片裁剪为方形（上下切割）"""
         width, height = img.size
 
@@ -910,7 +910,7 @@ class CommonRenderer(ImageRenderer):
                 case ImageGridSectionData() as image_grid:
                     self._draw_image_grid(ctx, image_grid)
 
-    def _create_avatar_placeholder(self) -> PILImage:
+    def _create_avatar_placeholder(self) -> Image.Image:
         """创建默认头像占位符"""
         # 头像占位符配置常量
         placeholder_bg_color = (230, 230, 230, 255)
@@ -1031,7 +1031,7 @@ class CommonRenderer(ImageRenderer):
 
         ctx.y_pos += self.SECTION_SPACING
 
-    def _draw_cover(self, ctx: RenderContext, cover_img: PILImage) -> None:
+    def _draw_cover(self, ctx: RenderContext, cover_img: Image.Image) -> None:
         """绘制封面"""
         # 封面从左边padding开始，和文字、头像对齐
         x_pos = self.PADDING
@@ -1202,7 +1202,7 @@ class CommonRenderer(ImageRenderer):
 
     def _draw_more_indicator(
         self,
-        image: PILImage,
+        image: Image.Image,
         img_x: int,
         img_y: int,
         img_width: int,
@@ -1233,7 +1233,7 @@ class CommonRenderer(ImageRenderer):
 
     def _draw_rounded_rectangle(
         self,
-        image: PILImage,
+        image: Image.Image,
         bbox: tuple[int, int, int, int],
         fill_color: Color,
         radius: int = 8,
@@ -1254,7 +1254,7 @@ class CommonRenderer(ImageRenderer):
 
     def _draw_rounded_rectangle_border(
         self,
-        draw: PILImageDraw,
+        draw: ImageDraw.ImageDraw,
         bbox: tuple[int, int, int, int],
         border_color: Color,
         radius: int = 8,
