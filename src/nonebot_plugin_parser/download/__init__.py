@@ -2,7 +2,7 @@ import asyncio
 from pathlib import Path
 
 import aiofiles
-from httpx import HTTPError, AsyncClient
+from httpx import HTTPError, AsyncClient, ConnectTimeout
 from nonebot import logger
 from tqdm.asyncio import tqdm
 
@@ -28,6 +28,7 @@ class StreamDownloader:
         *,
         file_name: str | None = None,
         ext_headers: dict[str, str] | None = None,
+        max_retries: int = 3,
     ) -> Path:
         """download file by url with stream
 
@@ -35,6 +36,7 @@ class StreamDownloader:
             url (str): url address
             file_name (str | None): file name. Defaults to generate_file_name.
             ext_headers (dict[str, str] | None): ext headers. Defaults to None.
+            max_retries (int): maximum number of retries when download fails. Defaults to 3.
 
         Returns:
             Path: file path
@@ -52,30 +54,38 @@ class StreamDownloader:
 
         headers = {**self.headers, **(ext_headers or {})}
 
-        try:
-            async with self.client.stream("GET", url, headers=headers, follow_redirects=True) as response:
-                response.raise_for_status()
-                content_length = response.headers.get("Content-Length")
-                content_length = int(content_length) if content_length else 0
+        retry_count = 0
+        while retry_count <= max_retries:
+            try:
+                async with self.client.stream("GET", url, headers=headers, follow_redirects=True) as response:
+                    response.raise_for_status()
+                    content_length = response.headers.get("Content-Length")
+                    content_length = int(content_length) if content_length else 0
 
-                if content_length == 0:
-                    logger.warning(f"媒体 url: {url}, 大小为 0, 取消下载")
-                    raise ZeroSizeException
+                    if content_length == 0:
+                        logger.warning(f"媒体 url: {url}, 大小为 0, 取消下载")
+                        raise ZeroSizeException
 
-                if (file_size := content_length / 1024 / 1024) > pconfig.max_size:
-                    logger.warning(f"媒体 url: {url} 大小 {file_size:.2f} MB 超过 {pconfig.max_size} MB, 取消下载")
-                    raise SizeLimitException
+                    if (file_size := content_length / 1024 / 1024) > pconfig.max_size:
+                        logger.warning(f"媒体 url: {url} 大小 {file_size:.2f} MB 超过 {pconfig.max_size} MB, 取消下载")
+                        raise SizeLimitException
 
-                with self.get_progress_bar(file_name, content_length) as bar:
-                    async with aiofiles.open(file_path, "wb") as file:
-                        async for chunk in response.aiter_bytes(1024 * 1024):
-                            await file.write(chunk)
-                            bar.update(len(chunk))
-
-        except HTTPError:
-            await safe_unlink(file_path)
-            logger.exception(f"下载失败 | url: {url}, file_path: {file_path}")
-            raise DownloadException("媒体下载失败")
+                    with self.get_progress_bar(file_name, content_length) as bar:
+                        async with aiofiles.open(file_path, "wb") as file:
+                            async for chunk in response.aiter_bytes(1024 * 1024):
+                                await file.write(chunk)
+                                bar.update(len(chunk))
+                    # 下载成功，跳出循环
+                    break
+            except (HTTPError, ConnectionError, TimeoutError) as e:
+                retry_count += 1
+                await safe_unlink(file_path)
+                if retry_count > max_retries:
+                    logger.exception(f"下载失败，已重试 {max_retries} 次 | url: {url}, file_path: {file_path}")
+                    raise DownloadException(f"媒体下载失败: {e}")
+                logger.warning(f"下载失败，正在重试 ({retry_count}/{max_retries}) | url: {url}, error: {e}")
+                # 等待一段时间后重试
+                await asyncio.sleep(1 * retry_count)  # 指数退避
         return file_path
 
     @staticmethod
