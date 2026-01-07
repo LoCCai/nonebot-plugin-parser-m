@@ -239,6 +239,7 @@ class TapTapParser(BaseParser):
     def _build_result(self, detail: Dict[str, Any]):
         """构建解析结果"""
         contents = []
+        media_contents = []
         
         # 添加图片
         for img_url in detail['images']:
@@ -247,11 +248,20 @@ class TapTapParser(BaseParser):
         # 添加视频
         for video_url in detail['videos']:
             # 简单处理，不获取封面和时长
-            contents.append(self.create_video_content(video_url))
+            video_content = self.create_video_content(video_url)
+            contents.append(video_content)
+            # 将视频添加到media_contents中，用于延迟发送
+            media_contents.append((VideoContent, video_content))
         
-        return self.result(
+        result = self.result(
             title=detail['title'],
             text=detail['summary'],
             url=detail['url'],
             contents=contents
         )
+        
+        # 设置media_contents，用于延迟发送
+        result.media_contents = media_contents
+        logger.debug(f"构建解析结果完成: title={detail['title']}, images={len(detail['images'])}, videos={len(detail['videos'])}, media_contents={len(media_contents)}")
+        
+        return result
