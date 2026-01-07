@@ -92,6 +92,8 @@
             margin-bottom: 20px;
             color: #666;
             line-height: 1.8;
+            white-space: pre-wrap;
+            word-wrap: break-word;
         }
 
         .images {
@@ -224,11 +226,13 @@
 
             {% if result.author %}
             <div class="author">
+                {% if result.author.avatar %}
                 <img class="author-avatar" src="{{ result.author.avatar }}" alt="{{ result.author.name }}">
+                {% endif %}
                 <div class="author-info">
                     <div class="author-name">{{ result.author.name }}</div>
-                    {% if result.publish_time %}
-                    <div class="publish-time">{{ result.publish_time }}</div>
+                    {% if result.timestamp %}
+                    <div class="publish-time">{{ result.formartted_datetime }}</div>
                     {% endif %}
                 </div>
             </div>
@@ -238,9 +242,9 @@
             <div class="text">{{ result.text }}</div>
             {% endif %}
 
-            {% if result.images %}
+            {% if result.extra.images %}
             <div class="images">
-                {% for image in result.images %}
+                {% for image in result.extra.images %}
                 <div class="image">
                     <img src="{{ image }}" alt="">
                 </div>
@@ -248,31 +252,24 @@
             </div>
             {% endif %}
 
-            {% if result.video %}
-            <div class="video-preview">
-                <img src="{{ result.video.cover }}" alt="视频封面">
-                <div class="play-btn"></div>
-            </div>
-            {% endif %}
-
-            {% if result.stats %}
+            {% if result.extra.stats %}
             <div class="media-info">
-                {% if result.stats.likes %}
+                {% if result.extra.stats.likes %}
                 <div class="info-item">
                     <span class="icon">❤️</span>
-                    <span>{{ result.stats.likes }}</span>
+                    <span>{{ result.extra.stats.likes }}</span>
                 </div>
                 {% endif %}
-                {% if result.stats.comments %}
+                {% if result.extra.stats.comments %}
                 <div class="info-item">
                     <span class="icon">💬</span>
-                    <span>{{ result.stats.comments }}</span>
+                    <span>{{ result.extra.stats.comments }}</span>
                 </div>
                 {% endif %}
-                {% if result.stats.shares %}
+                {% if result.extra.stats.shares %}
                 <div class="info-item">
                     <span class="icon">🔗</span>
-                    <span>{{ result.stats.shares }}</span>
+                    <span>{{ result.extra.stats.shares }}</span>
                 </div>
                 {% endif %}
             </div>

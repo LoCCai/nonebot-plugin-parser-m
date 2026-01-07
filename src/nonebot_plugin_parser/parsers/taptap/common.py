@@ -123,18 +123,69 @@ class TapTapParser(BaseParser):
             "title": "",
             "summary": "",
             "images": [],
-            "videos": []
+            "videos": [],
+            "author": {
+                "name": "",
+                "avatar": ""
+            },
+            "publish_time": "",
+            "stats": {
+                "likes": 0,
+                "comments": 0,
+                "shares": 0
+            }
         }
         
-        # 补全标题和摘要
+        # 补全标题、文本内容、作者信息和发布时间
         for item in data:
-            if isinstance(item, dict) and 'title' in item and 'summary' in item:
+            if not isinstance(item, dict):
+                continue
+                
+            # 提取标题和摘要（文本内容）
+            if 'title' in item and 'summary' in item:
                 title = self._resolve_nuxt_value(data, item['title'])
                 summary = self._resolve_nuxt_value(data, item['summary'])
                 if title and isinstance(title, str):
                     result['title'] = title
                 if summary and isinstance(summary, str):
                     result['summary'] = summary
+            
+            # 尝试提取完整的文本内容
+            if 'content' in item:
+                content = self._resolve_nuxt_value(data, item['content'])
+                if content and isinstance(content, str):
+                    result['summary'] = content
+            
+            # 尝试从其他可能的字段提取文本
+            if 'text' in item:
+                text = self._resolve_nuxt_value(data, item['text'])
+                if text and isinstance(text, str):
+                    result['summary'] = text
+            
+            # 提取作者信息
+            if 'author' in item:
+                author = self._resolve_nuxt_value(data, item['author'])
+                if isinstance(author, dict):
+                    result['author']['name'] = self._resolve_nuxt_value(data, author.get('name', '')) or ''
+                    # 尝试提取作者头像
+                    if 'avatar' in author:
+                        avatar = self._resolve_nuxt_value(data, author['avatar'])
+                        if isinstance(avatar, dict) and 'original_url' in avatar:
+                            result['author']['avatar'] = self._resolve_nuxt_value(data, avatar['original_url']) or ''
+            
+            # 提取发布时间
+            if 'created_at' in item or 'publish_time' in item:
+                publish_time = self._resolve_nuxt_value(data, item.get('created_at') or item.get('publish_time'))
+                if publish_time:
+                    result['publish_time'] = publish_time
+            
+            # 提取统计信息
+            if 'stats' in item:
+                stats = self._resolve_nuxt_value(data, item['stats'])
+                if isinstance(stats, dict):
+                    result['stats']['likes'] = stats.get('likes', 0)
+                    result['stats']['comments'] = stats.get('comments', 0)
+                    result['stats']['shares'] = stats.get('shares', 0)
         
         if not result['title']:
             result['title'] = "TapTap 动态分享"
@@ -253,11 +304,38 @@ class TapTapParser(BaseParser):
             # 将视频添加到media_contents中，用于延迟发送
             media_contents.append((VideoContent, video_content))
         
+        # 构建作者对象
+        author = None
+        if detail['author']['name']:
+            author = self.create_author(
+                name=detail['author']['name'],
+                avatar_url=detail['author']['avatar']
+            )
+        
+        # 处理发布时间，转换为时间戳
+        timestamp = None
+        if detail['publish_time']:
+            # 尝试解析不同格式的时间字符串
+            try:
+                # 示例：2023-12-25T14:30:00+08:00
+                dt = datetime.fromisoformat(detail['publish_time'].replace('Z', '+00:00'))
+                timestamp = int(dt.timestamp())
+            except (ValueError, TypeError):
+                # 如果解析失败，使用None
+                pass
+        
+        # 构建解析结果
         result = self.result(
             title=detail['title'],
             text=detail['summary'],
             url=detail['url'],
-            contents=contents
+            author=author,
+            timestamp=timestamp,
+            contents=contents,
+            extra={
+                'stats': detail['stats'],
+                'images': detail['images']  # 将图片列表放入extra，用于模板渲染
+            }
         )
         
         # 设置media_contents，用于延迟发送
