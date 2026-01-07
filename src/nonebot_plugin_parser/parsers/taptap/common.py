@@ -37,17 +37,32 @@ class TapTapParser(BaseParser):
         """获取页面的 Nuxt 数据"""
         async with browser_pool.get_browser() as browser:
             async with safe_browser_context(browser) as (context, page):
-                # 导航到 URL
-                await page.goto(url, wait_until="domcontentloaded")
-                await page.wait_for_timeout(2000)  # 等待 2 秒确保页面完全加载
+                # 导航到 URL，增加等待时间确保页面完全加载
+                await page.goto(url, wait_until="networkidle")  # 等待网络空闲，确保资源加载完成
+                await page.wait_for_timeout(3000)  # 再等待 3 秒确保页面完全渲染
                 
                 # 获取页面内容
                 response_text = await page.content()
                 
-                # 提取 __NUXT_DATA__
-                match = re.search(r'<script id="__NUXT_DATA__"[^>]*>(.*?)</script>', response_text, re.DOTALL)
-                if not match:
-                    raise ParseException(f"无法找到 Nuxt 数据: {url}")
+                # 调试：检查页面是否包含 __NUXT_DATA__
+                if "__NUXT_DATA__" not in response_text:
+                    # 尝试等待更久，可能是动态加载
+                    await page.wait_for_timeout(5000)
+                    response_text = await page.content()
+                    
+                    # 再次检查
+                    if "__NUXT_DATA__" not in response_text:
+                        # 尝试不同的正则表达式，可能标签格式有变化
+                        match = re.search(r'<script[^>]*id=["\']__NUXT_DATA__["\'][^>]*>(.*?)</script>', response_text, re.DOTALL)
+                        if not match:
+                            # 调试：保存页面内容到日志
+                            logger.debug(f"页面内容片段: {response_text[:1000]}...")
+                            raise ParseException(f"无法找到 Nuxt 数据: {url}")
+                else:
+                    # 使用原始正则表达式
+                    match = re.search(r'<script id="__NUXT_DATA__"[^>]*>(.*?)</script>', response_text, re.DOTALL)
+                    if not match:
+                        raise ParseException(f"无法找到 Nuxt 数据: {url}")
                 
                 try:
                     result = json.loads(match.group(1))
