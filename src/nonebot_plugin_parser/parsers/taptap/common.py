@@ -1,3 +1,4 @@
+import asyncio
 import json
 import re
 from datetime import datetime
@@ -37,80 +38,94 @@ class TapTapParser(BaseParser):
     
     async def _fetch_nuxt_data(self, url: str) -> list:
         """获取页面的 Nuxt 数据"""
-        async with browser_pool.get_browser() as browser:
-            async with safe_browser_context(browser) as (context, page):
-                # 导航到 URL，增加等待时间确保页面完全加载
-                await page.goto(url, wait_until="networkidle")  # 等待网络空闲，确保资源加载完成
-                await page.wait_for_timeout(5000)  # 增加等待时间到5秒，确保页面完全渲染
+        max_retries = 3
+        retry_count = 0
+        
+        while retry_count <= max_retries:
+            try:
+                async with browser_pool.get_browser() as browser:
+                    async with safe_browser_context(browser) as (context, page):
+                        # 导航到 URL，增加等待时间确保页面完全加载
+                        await page.goto(url, wait_until="networkidle")  # 等待网络空闲，确保资源加载完成
+                        await page.wait_for_timeout(5000)  # 增加等待时间到5秒，确保页面完全渲染
+                        
+                        # 获取页面内容
+                        response_text = await page.content()
+                        
+                        # 调试：记录页面基本信息
+                        logger.debug(f"页面 URL: {url}")
+                        logger.debug(f"页面大小: {len(response_text)} 字节")
+                        logger.debug(f"页面包含 __NUXT_DATA__: {'__NUXT_DATA__' in response_text}")
+                        
+                        # 尝试多种方式提取 Nuxt 数据
+                        nuxt_data = None
+                        
+                        # 方式1: 尝试原始的 __NUXT_DATA__ 提取
+                        if "__NUXT_DATA__" in response_text:
+                            # 尝试多种正则表达式匹配
+                            patterns = [
+                                r'<script id="__NUXT_DATA__"[^>]*>(.*?)</script>',
+                                r'<script[^>]*id=["\']__NUXT_DATA__["\'][^>]*>(.*?)</script>',
+                                r'<script[^>]*>(.*?__NUXT_DATA__.*?)</script>',
+                            ]
+                            
+                            for pattern in patterns:
+                                match = re.search(pattern, response_text, re.DOTALL)
+                                if match:
+                                    logger.debug(f"使用正则表达式匹配成功: {pattern[:50]}...")
+                                    try:
+                                        # 提取json数据部分
+                                        json_match = re.search(r'__NUXT_DATA__\s*=\s*(\[.*?\])', match.group(1), re.DOTALL)
+                                        if json_match:
+                                            nuxt_data = json.loads(json_match.group(1))
+                                            break
+                                        # 尝试直接解析整个匹配内容
+                                        nuxt_data = json.loads(match.group(1))
+                                        break
+                                    except json.JSONDecodeError as e:
+                                        logger.debug(f"解析 Nuxt 数据失败，尝试下一个正则表达式: {e}")
+                                        continue
+                        
+                        # 方式2: 如果找不到 __NUXT_DATA__，尝试从 window.__NUXT__ 中提取
+                        if not nuxt_data and "window.__NUXT__" in response_text:
+                            logger.debug("尝试从 window.__NUXT__ 中提取数据")
+                            match = re.search(r'window\.__NUXT__\s*=\s*(\[.*?\])', response_text, re.DOTALL)
+                            if match:
+                                try:
+                                    nuxt_data = json.loads(match.group(1))
+                                except json.JSONDecodeError as e:
+                                    logger.debug(f"解析 window.__NUXT__ 失败: {e}")
+                        
+                        # 方式3: 尝试从 window.__NUXT_DATA__ 中提取
+                        if not nuxt_data and "window.__NUXT_DATA__" in response_text:
+                            logger.debug("尝试从 window.__NUXT_DATA__ 中提取数据")
+                            match = re.search(r'window\.__NUXT_DATA__\s*=\s*(\[.*?\])', response_text, re.DOTALL)
+                            if match:
+                                try:
+                                    nuxt_data = json.loads(match.group(1))
+                                except json.JSONDecodeError as e:
+                                    logger.debug(f"解析 window.__NUXT_DATA__ 失败: {e}")
+                        
+                        # 如果仍然没有找到数据，抛出异常
+                        if not nuxt_data:
+                            # 保存页面内容到临时文件，便于调试
+                            temp_file = f"taptap_debug_{datetime.now().strftime('%Y%m%d_%H%M%S')}.html"
+                            with open(temp_file, "w", encoding="utf-8") as f:
+                                f.write(response_text)
+                            logger.debug(f"页面内容已保存到临时文件: {temp_file}")
+                            raise ParseException(f"无法找到 Nuxt 数据: {url}")
+                        
+                        # 确保返回的是列表
+                        return nuxt_data if isinstance(nuxt_data, list) else []
+            
+            except Exception as e:
+                retry_count += 1
+                if retry_count > max_retries:
+                    logger.error(f"获取 Nuxt 数据失败，已重试 {max_retries} 次 | url: {url}, error: {e}")
+                    raise ParseException(f"获取 Nuxt 数据失败: {url}, error: {e}")
                 
-                # 获取页面内容
-                response_text = await page.content()
-                
-                # 调试：记录页面基本信息
-                logger.debug(f"页面 URL: {url}")
-                logger.debug(f"页面大小: {len(response_text)} 字节")
-                logger.debug(f"页面包含 __NUXT_DATA__: {'__NUXT_DATA__' in response_text}")
-                
-                # 尝试多种方式提取 Nuxt 数据
-                nuxt_data = None
-                
-                # 方式1: 尝试原始的 __NUXT_DATA__ 提取
-                if "__NUXT_DATA__" in response_text:
-                    # 尝试多种正则表达式匹配
-                    patterns = [
-                        r'<script id="__NUXT_DATA__"[^>]*>(.*?)</script>',
-                        r'<script[^>]*id=["\']__NUXT_DATA__["\'][^>]*>(.*?)</script>',
-                        r'<script[^>]*>(.*?__NUXT_DATA__.*?)</script>',
-                    ]
-                    
-                    for pattern in patterns:
-                        match = re.search(pattern, response_text, re.DOTALL)
-                        if match:
-                            logger.debug(f"使用正则表达式匹配成功: {pattern[:50]}...")
-                            try:
-                                # 提取json数据部分
-                                json_match = re.search(r'__NUXT_DATA__\s*=\s*(\[.*?\])', match.group(1), re.DOTALL)
-                                if json_match:
-                                    nuxt_data = json.loads(json_match.group(1))
-                                    break
-                                # 尝试直接解析整个匹配内容
-                                nuxt_data = json.loads(match.group(1))
-                                break
-                            except json.JSONDecodeError as e:
-                                logger.debug(f"解析 Nuxt 数据失败，尝试下一个正则表达式: {e}")
-                                continue
-                
-                # 方式2: 如果找不到 __NUXT_DATA__，尝试从 window.__NUXT__ 中提取
-                if not nuxt_data and "window.__NUXT__" in response_text:
-                    logger.debug("尝试从 window.__NUXT__ 中提取数据")
-                    match = re.search(r'window\.__NUXT__\s*=\s*(\[.*?\])', response_text, re.DOTALL)
-                    if match:
-                        try:
-                            nuxt_data = json.loads(match.group(1))
-                        except json.JSONDecodeError as e:
-                            logger.debug(f"解析 window.__NUXT__ 失败: {e}")
-                
-                # 方式3: 尝试从 window.__NUXT_DATA__ 中提取
-                if not nuxt_data and "window.__NUXT_DATA__" in response_text:
-                    logger.debug("尝试从 window.__NUXT_DATA__ 中提取数据")
-                    match = re.search(r'window\.__NUXT_DATA__\s*=\s*(\[.*?\])', response_text, re.DOTALL)
-                    if match:
-                        try:
-                            nuxt_data = json.loads(match.group(1))
-                        except json.JSONDecodeError as e:
-                            logger.debug(f"解析 window.__NUXT_DATA__ 失败: {e}")
-                
-                # 如果仍然没有找到数据，抛出异常并记录更多调试信息
-                if not nuxt_data:
-                    # 保存页面内容到临时文件，便于调试
-                    temp_file = f"taptap_debug_{datetime.now().strftime('%Y%m%d_%H%M%S')}.html"
-                    with open(temp_file, "w", encoding="utf-8") as f:
-                        f.write(response_text)
-                    logger.debug(f"页面内容已保存到临时文件: {temp_file}")
-                    raise ParseException(f"无法找到 Nuxt 数据: {url}")
-                
-                # 确保返回的是列表
-                return nuxt_data if isinstance(nuxt_data, list) else []
+                logger.warning(f"获取 Nuxt 数据失败，正在重试 ({retry_count}/{max_retries}) | url: {url}, error: {e}")
+                await asyncio.sleep(1 * retry_count)  # 指数退避
     
     async def _parse_post_detail(self, post_id: str) -> Dict[str, Any]:
         """解析动态详情"""
