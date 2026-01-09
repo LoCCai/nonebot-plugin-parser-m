@@ -26,10 +26,17 @@ class HtmlRenderer(ImageRenderer):
         # 处理模板针对
         template_name = "card.html.jinja"
         if result.platform:
-            # 添加存在性验证
-            file_name = f"{str(result.platform.name).lower()}.html.jinja"
-            if (self.templates_dir / file_name).exists():
-                template_name = file_name
+            # 音乐平台使用音乐模板
+            music_platforms = ['kugou', 'netease']
+            platform_name = str(result.platform.name).lower()
+            
+            if platform_name in music_platforms:
+                template_name = "music.html.jinja"
+            else:
+                # 其他平台使用各自的模板
+                file_name = f"{platform_name}.html.jinja"
+                if (self.templates_dir / file_name).exists():
+                    template_name = file_name
 
         # 渲染图片
         return await template_to_pic(

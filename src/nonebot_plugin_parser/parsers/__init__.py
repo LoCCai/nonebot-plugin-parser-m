@@ -8,6 +8,7 @@ from .twitter import TwitterParser as TwitterParser
 from .bilibili import BilibiliParser as BilibiliParser
 from .kuaishou import KuaiShouParser as KuaiShouParser
 from .kugou import KuGouParser as KuGouParser
+from .netease import NCMParser as NCMParser
 from ..download import YTDLP_DOWNLOADER
 from .xiaohongshu import XiaoHongShuParser as XiaoHongShuParser
 from .taptap import TapTapParser as TapTapParser
@@ -36,6 +37,7 @@ __all__ = [
     "GraphicsContent",
     "ImageContent",
     "KuGouParser",
+    "NCMParser",
     "ParseResult",
     "Platform",
     "VideoContent",

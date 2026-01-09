@@ -22,9 +22,9 @@ class KuGouParser(BaseParser):
     platform: ClassVar[Platform] = Platform(name=PlatformEnum.KUGOU, display_name="酷狗音乐")
     lzkey = ""
     
-    async def search_songs(self, title: str, n: int = None) -> list:
+    async def search_songs(self, title: str, n: int | None = None) -> list:
         """搜索歌曲函数"""
-        if not n:
+        if n is None:
             api_url = f"https://sdkapi.hhlqilongzhu.cn/api/dgMusic_kugou/?key={self.lzkey}&msg={title}&type=json"
         else:
             api_url = f"https://sdkapi.hhlqilongzhu.cn/api/dgMusic_kugou/?key={self.lzkey}&msg={title}&type=json&n={n}"
@@ -186,14 +186,16 @@ class KuGouParser(BaseParser):
             
             # 创建封面图片内容
             cover_url = song_details.get("cover", "")
-            contents = [audio_content]
+            contents = []
             
             if cover_url:
                 from ..download import DOWNLOADER
                 cover_content = ImageContent(
                     DOWNLOADER.download_img(cover_url, ext_headers=self.headers)
                 )
-                contents.insert(0, cover_content)
+                contents.append(cover_content)
+            
+            contents.append(audio_content)
             
             # 构建歌词文本
             lyric = song_details.get("lyrics", "")
