@@ -1,12 +1,16 @@
 """Parser 基类定义"""
 
+import asyncio
 from re import Match, Pattern, compile
 from abc import ABC
-from typing import TYPE_CHECKING, Any, TypeVar, ClassVar, cast
+from typing import TYPE_CHECKING, Any, TypeVar, ClassVar, cast, Optional
 from asyncio import Task
 from pathlib import Path
 from collections.abc import Callable, Coroutine
-from typing_extensions import Unpack
+from typing_extensions import Unpack, ParamSpec
+
+P = ParamSpec('P')
+R = TypeVar('R')
 
 from .data import Platform, ParseResult, ParseResultKwargs
 from ..config import pconfig as pconfig
@@ -28,8 +32,35 @@ KeyPatterns = list[tuple[str, Pattern[str]]]
 _KEY_PATTERNS = "_key_patterns"
 
 
+# 重试装饰器
+def retry(max_retries: int = 3, delay: float = 1.0):
+    """
+    通用重试装饰器
+    
+    Args:
+        max_retries: 最大重试次数
+        delay: 初始重试延迟（秒）
+    """
+    def decorator(func: Callable[P, Coroutine[Any, Any, R]]) -> Callable[P, Coroutine[Any, Any, R]]:
+        async def wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
+            retry_count = 0
+            while retry_count <= max_retries:
+                try:
+                    return await func(*args, **kwargs)
+                except Exception as e:
+                    retry_count += 1
+                    if retry_count > max_retries:
+                        raise
+                    
+                    # 指数退避
+                    current_delay = delay * (2 ** (retry_count - 1))
+                    await asyncio.sleep(current_delay)
+            return await func(*args, **kwargs)  # 类型检查用，实际不会执行
+        return wrapper
+    return decorator
+
 # 注册处理器装饰器
-def handle(keyword: str, pattern: str):
+def handle(keyword: str, pattern: str, max_retries: int = 3):
     """注册处理器装饰器"""
 
     def decorator(func: HandlerFunc[T]) -> HandlerFunc[T]:
@@ -38,8 +69,9 @@ def handle(keyword: str, pattern: str):
 
         key_patterns: KeyPatterns = getattr(func, _KEY_PATTERNS)
         key_patterns.append((keyword, compile(pattern)))
-
-        return func
+        
+        # 应用重试装饰器
+        return retry(max_retries=max_retries)(func)
 
     return decorator
 
@@ -109,6 +141,7 @@ class BaseParser:
         """
         return await self._handlers[keyword](self, searched)
 
+    @retry(max_retries=3)
     async def parse_with_redirect(
         self,
         url: str,
@@ -139,6 +172,7 @@ class BaseParser:
         return ParseResult(platform=cls.platform, **kwargs)
 
     @staticmethod
+    @retry(max_retries=3)
     async def get_redirect_url(
         url: str,
         headers: dict[str, str] | None = None,
@@ -159,6 +193,7 @@ class BaseParser:
             return response.headers.get("Location", url)
 
     @staticmethod
+    @retry(max_retries=3)
     async def get_final_url(
         url: str,
         headers: dict[str, str] | None = None,
