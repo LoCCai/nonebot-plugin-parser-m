@@ -4,7 +4,6 @@ import pytest
 from nonebot import logger
 from nonebot_plugin_parser.parsers.data import AudioContent
 
-
 @pytest.mark.asyncio
 async def test_kuwo_parse():
     """测试酷我音乐解析"""
@@ -42,6 +41,7 @@ async def test_kuwo_parse():
         logger.debug(f"内容数量: {len(result.contents)}")
         
         # 检查是否包含音频内容
+        
         audio_contents = [content for content in result.contents if isinstance(content, AudioContent)]
         assert len(audio_contents) > 0, "应该能提取音频内容"
     

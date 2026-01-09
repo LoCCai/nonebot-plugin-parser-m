@@ -14,6 +14,7 @@ from .xiaohongshu import XiaoHongShuParser as XiaoHongShuParser
 from .taptap import TapTapParser as TapTapParser
 from .qsmusic import QSMusicParser as QSMusicParser
 from .kuwo import KuWoParser as KuWoParser
+from .toutiao import ToutiaoParser as ToutiaoParser
 
 if YTDLP_DOWNLOADER is not None:
     from .tiktok import TikTokParser as TikTokParser
@@ -55,4 +56,5 @@ __all__ = [
     "XiaoHongShuParser",
     "TapTapParser",
     "QSMusicParser",
+    "ToutiaoParser",
 ]
