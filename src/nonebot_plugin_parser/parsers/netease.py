@@ -1,6 +1,5 @@
 import re
 import asyncio
-import aiohttp
 from typing import ClassVar
 from re import Match
 
@@ -35,10 +34,13 @@ class NCMParser(BaseParser):
     
     async def _get_redirect_url(self, url: str) -> str:
         """获取重定向后的URL"""
-        async with aiohttp.ClientSession() as session:
-            async with session.get(url, headers=COMMON_HEADER, allow_redirects=True) as response:
-                response.raise_for_status()
-                return str(response.url)
+        from httpx import AsyncClient
+        
+        headers = COMMON_HEADER.copy()
+        async with AsyncClient(headers=headers, verify=False, follow_redirects=True, timeout=self.timeout) as client:
+            response = await client.get(url)
+            response.raise_for_status()
+            return str(response.url)
     
     async def parse_ncm(self, ncm_url: str) -> dict:
         """解析网易云音乐链接"""
@@ -60,11 +62,14 @@ class NCMParser(BaseParser):
             # 尝试多种音质直到成功
             for quality in self.audio_qualities:
                 try:
-                    async with aiohttp.ClientSession() as session:
+                    from httpx import AsyncClient
+                    
+                    headers = COMMON_HEADER.copy()
+                    async with AsyncClient(headers=headers, verify=False, timeout=self.timeout) as client:
                         api_url = f"https://api.cenguigui.cn/api/netease/music_v1.php?id={ncm_id}&type=json&level={quality}"
-                        async with session.get(api_url) as resp:
-                            resp.raise_for_status()
-                            data = await resp.json()
+                        resp = await client.get(api_url)
+                        resp.raise_for_status()
+                        data = resp.json()
                             
                             # 检查接口返回状态
                             if data.get("code") != 200:

@@ -1,6 +1,5 @@
 import re
 import json
-import aiohttp
 from typing import ClassVar
 from re import Match
 from difflib import SequenceMatcher
@@ -24,17 +23,20 @@ class KuGouParser(BaseParser):
     
     async def search_songs(self, title: str, n: int | None = None) -> list:
         """搜索歌曲函数"""
+        from httpx import AsyncClient
+        
         if n is None:
             api_url = f"https://sdkapi.hhlqilongzhu.cn/api/dgMusic_kugou/?key={self.lzkey}&msg={title}&type=json"
         else:
             api_url = f"https://sdkapi.hhlqilongzhu.cn/api/dgMusic_kugou/?key={self.lzkey}&msg={title}&type=json&n={n}"
         
-        async with aiohttp.ClientSession() as session:
-            async with session.get(api_url, headers=COMMON_HEADER) as response:
-                if response.status != 200:
-                    raise ParseException(f"歌曲搜索接口异常: HTTP {response.status}")
+        headers = COMMON_HEADER.copy()
+        async with AsyncClient(headers=headers, verify=False, timeout=self.timeout) as client:
+            response = await client.get(api_url)
+            if response.status_code != 200:
+                raise ParseException(f"歌曲搜索接口异常: HTTP {response.status_code}")
                 
-                result = await response.json()
+            result = response.json()
                 
                 # 处理不同结构的API响应
                 if "data" in result:
@@ -78,11 +80,14 @@ class KuGouParser(BaseParser):
         share_url = searched.group(0)
         logger.debug(f"触发酷狗解析: {share_url}")
         
-        async with aiohttp.ClientSession() as session:
-            # 获取分享页HTML
-            async with session.get(share_url, headers=COMMON_HEADER, ssl=False) as response:
-                response.raise_for_status()
-                html_text = await response.text()
+        from httpx import AsyncClient
+        
+        # 获取分享页HTML
+        headers = COMMON_HEADER.copy()
+        async with AsyncClient(headers=headers, verify=False, timeout=self.timeout) as client:
+            response = await client.get(share_url)
+            response.raise_for_status()
+            html_text = response.text()
             
             # 提取内嵌歌曲信息
             embedded_info = self._extract_embedded_info(html_text)
