@@ -45,7 +45,7 @@ class KuWoParser(BaseParser):
                 
                 # 检查接口返回状态
                 if data.get("code") != 200:
-                    raise ParseException(f"酷我音乐接口返回错误: {data.get('msg')}")
+                    raise ParseException(f"酷我音乐接口返回错误: {data.get('msg', '未知错误')}")
                     
                 music_data = data["data"]
                 logger.info(f"酷我音乐解析成功: {music_data['title']} - {music_data['artist']}")

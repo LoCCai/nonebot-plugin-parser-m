@@ -64,10 +64,16 @@ class QSMusicParser(BaseParser):
                 # 创建封面图片内容（如果有）
                 contents: list[MediaContent] = [audio_content]
                 
+                # 清理歌词，去除时间标记
+                def clean_lyrics(lyrics: str) -> str:
+                    # 移除<>中的时间标记
+                    return re.sub(r'<[^>]+>', '', lyrics)
+                
                 # 构建文本内容
                 text = f"专辑: {music_data['albumname']}\n音质: {music_data['Format']} | 大小: {music_data['Size']}"
                 if "lyric" in music_data and music_data["lyric"]:
-                    text += f"\n歌词:\n{music_data['lyric']}"
+                    cleaned_lyrics = clean_lyrics(music_data["lyric"])
+                    text += f"\n歌词:\n{cleaned_lyrics}"
                 
                 # 构建额外信息
                 extra = {

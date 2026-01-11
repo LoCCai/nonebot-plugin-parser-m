@@ -20,6 +20,7 @@ class NCMParser(BaseParser):
     platform: ClassVar[Platform] = Platform(name=PlatformEnum.NETEASE, display_name="网易云音乐")
     
     def __init__(self):
+        super().__init__()
         self.short_url_pattern = re.compile(r"(http:|https:)//163cn\.tv/([a-zA-Z0-9]+)")
         # 音质优先级列表
         self.audio_qualities = [
