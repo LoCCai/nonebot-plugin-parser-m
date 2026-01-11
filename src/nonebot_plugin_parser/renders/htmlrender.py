@@ -27,7 +27,7 @@ class HtmlRenderer(ImageRenderer):
         template_name = "card.html.jinja"
         if result.platform:
             # 音乐平台使用音乐模板
-            music_platforms = ['kugou', 'netease']
+            music_platforms = ['kugou', 'netease', 'kuwo', 'qsmusic']
             platform_name = str(result.platform.name).lower()
             
             if platform_name in music_platforms:
