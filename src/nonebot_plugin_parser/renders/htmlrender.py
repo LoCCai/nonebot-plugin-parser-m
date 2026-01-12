@@ -90,16 +90,29 @@ class HtmlRenderer(ImageRenderer):
         # 处理封面路径 - 先从contents中查找图片作为封面
         cover_path = None
         contents = []
+        
+        # 只处理ImageContent类型的内容，避免触发视频/音频下载
         for cont in result.contents:
-            path = await cont.get_path()
-            contents.append({"path": path.as_uri()})
-            # 将第一个图片内容作为封面
-            if not cover_path and hasattr(cont, "__class__") and cont.__class__.__name__ == "ImageContent":
-                cover_path = path
+            # 只处理图片内容，不触发视频/音频下载
+            if hasattr(cont, "__class__") and cont.__class__.__name__ == "ImageContent":
+                try:
+                    path = await cont.get_path()
+                    contents.append({"path": path.as_uri()})
+                    # 将第一个图片内容作为封面
+                    if not cover_path:
+                        cover_path = path
+                except Exception as e:
+                    logger.warning(f"获取图片内容路径失败: {e}")
+            else:
+                # 对于非图片内容，不获取路径，避免触发下载
+                contents.append({"path": None})
         
         # 如果contents中没有图片，尝试使用cover_path属性
         if not cover_path:
-            cover_path = await result.cover_path
+            try:
+                cover_path = await result.cover_path
+            except Exception as e:
+                logger.warning(f"获取封面路径失败: {e}")
         
         if cover_path:
             data["cover_path"] = cover_path.as_uri()
@@ -109,20 +122,26 @@ class HtmlRenderer(ImageRenderer):
 
         img_contents = []
         for img in result.img_contents:
-            path = await img.get_path()
-            img_contents.append({"path": path.as_uri()})
+            try:
+                path = await img.get_path()
+                img_contents.append({"path": path.as_uri()})
+            except Exception as e:
+                logger.warning(f"获取图片内容路径失败: {e}")
         data["img_contents"] = img_contents
 
         graphics_contents = []
         for graphics in result.graphics_contents:
-            path = await graphics.get_path()
-            graphics_contents.append(
-                {
-                    "path": path.as_uri(),
-                    "text": graphics.text,
-                    "alt": graphics.alt,
-                }
-            )
+            try:
+                path = await graphics.get_path()
+                graphics_contents.append(
+                    {
+                        "path": path.as_uri(),
+                        "text": graphics.text,
+                        "alt": graphics.alt,
+                    }
+                )
+            except Exception as e:
+                logger.warning(f"获取图文内容路径失败: {e}")
         data["graphics_contents"] = graphics_contents
 
         if result.repost:
