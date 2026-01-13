@@ -305,9 +305,13 @@ async def handle_group_msg_emoji_like(event):
                 
                 if media_type == VideoContent:
                     await UniMessage(UniHelper.video_seg(path)).send()
+                    if pconfig.need_upload:
+                        await UniMessage(UniHelper.file_seg(path)).send()
                     sent = True
                 elif media_type == AudioContent:
                     await UniMessage(UniHelper.record_seg(path)).send()
+                    if pconfig.need_upload:
+                        await UniMessage(UniHelper.file_seg(path)).send()
                     sent = True
             except Exception as e:
                 logger.error(f"发送延迟媒体失败: {e}")

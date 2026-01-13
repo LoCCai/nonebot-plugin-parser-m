@@ -88,8 +88,12 @@ class BaseRenderer(ABC):
                             logger.debug(f"立即发送{type(cont).__name__}: {path}")
                             if isinstance(cont, VideoContent):
                                 yield UniMessage(UniHelper.video_seg(path))
+                                if pconfig.need_upload:
+                                    yield UniMessage(UniHelper.file_seg(path))
                             elif isinstance(cont, AudioContent):
                                 yield UniMessage(UniHelper.record_seg(path))
+                                if pconfig.need_upload:
+                                    yield UniMessage(UniHelper.file_seg(path))
                         except (DownloadLimitException, ZeroSizeException):
                             continue
                         except DownloadException:
