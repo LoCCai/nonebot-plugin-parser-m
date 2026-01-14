@@ -133,7 +133,7 @@ class BaseRenderer(ABC):
                         continue
 
         # 如果有延迟发送的媒体，存储到解析结果中
-        if media_contents:
+        if media_contents and (pconfig.delay_send_media or pconfig.delay_send_lazy_download):
             result.media_contents = media_contents
 
         if forwardable_segs:
