@@ -55,10 +55,14 @@ class QSMusicParser(BaseParser):
                 if not audio_url.startswith("http"):
                     raise ParseException("无效音乐URL")
                     
+                # 创建有意义的音频文件名
+                audio_name = f"{music_data['albumname']}-{music_data['artistsname']}.mp3"
+                
                 # 由于API没有返回音频时长，我们设置为0.0
                 audio_content = self.create_audio_content(
                     audio_url,
-                    0.0
+                    0.0,
+                    audio_name=audio_name
                 )
                 
                 # 创建封面图片内容（如果有）

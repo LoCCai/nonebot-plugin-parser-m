@@ -65,10 +65,13 @@ class KuWoParser(BaseParser):
                     except ValueError:
                         pass
                 
+                # 创建有意义的音频文件名
+                audio_name = f"{music_data['title']}-{music_data['artist']}.mp3"
                 # 创建音频内容
                 audio_content = self.create_audio_content(
                     audio_url,
-                    duration
+                    duration,
+                    audio_name=audio_name
                 )
                 
                 # 创建封面图片内容

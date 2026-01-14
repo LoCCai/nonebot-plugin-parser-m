@@ -55,6 +55,7 @@ class StreamDownloader:
         headers = {**self.headers, **(ext_headers or {})}
 
         retry_count = 0
+        original_file_name = file_name
         while retry_count <= max_retries:
             try:
                 async with self.client.stream("GET", url, headers=headers, follow_redirects=True) as response:
@@ -77,13 +78,18 @@ class StreamDownloader:
                                 bar.update(len(chunk))
                     # 下载成功，跳出循环
                     break
-            except (HTTPError, ConnectionError, TimeoutError) as e:
+            except (HTTPError, ConnectionError, TimeoutError, OSError) as e:
                 retry_count += 1
                 await safe_unlink(file_path)
                 if retry_count > max_retries:
                     logger.exception(f"下载失败，已重试 {max_retries} 次 | url: {url}, file_path: {file_path}")
                     raise DownloadException(f"媒体下载失败: {e}")
-                logger.warning(f"下载失败，正在重试 ({retry_count}/{max_retries}) | url: {url}, error: {e}")
+                # 如果是第二次重试或更晚，使用随机文件名
+                if retry_count >= 2:
+                    file_name = generate_file_name(url, Path(original_file_name).suffix)
+                    file_path = self.cache_dir / file_name
+                    logger.warning(f"使用随机文件名重试下载: {file_name}")
+                logger.warning(f"下载失败，正在重试 ({retry_count}/{max_retries}) | url: {url}, error: {e}, 重试文件名: {file_name}")
                 # 等待一段时间后重试
                 await asyncio.sleep(1 * retry_count)  # 指数退避
         return file_path

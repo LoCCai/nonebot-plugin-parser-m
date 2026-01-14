@@ -235,15 +235,25 @@ class BaseParser:
         url_or_task: str | Task[Path] | Callable[[], Coroutine[Any, Any, Path]],
         cover_url: str | None = None,
         duration: float = 0.0,
+        video_name: str | None = None,
     ):
         """创建视频内容"""
         from .data import VideoContent
+        from ..utils import keep_zh_en_num
+
+        # 清理文件名，只保留安全字符
+        if video_name:
+            # 保留文件名中的后缀
+            import os
+            base_name, ext = os.path.splitext(video_name)
+            cleaned_base = keep_zh_en_num(base_name)
+            video_name = f"{cleaned_base}{ext}"
 
         cover_task = None
         if cover_url:
             cover_task = DOWNLOADER.download_img(cover_url, ext_headers=self.headers)
         if isinstance(url_or_task, str):
-            url_or_task = DOWNLOADER.download_video(url_or_task, ext_headers=self.headers)
+            url_or_task = DOWNLOADER.download_video(url_or_task, video_name=video_name, ext_headers=self.headers)
 
         return VideoContent(url_or_task, cover_task, duration)
 
@@ -277,12 +287,22 @@ class BaseParser:
         self,
         url_or_task: str | Task[Path],
         duration: float = 0.0,
+        audio_name: str | None = None,
     ):
         """创建音频内容"""
         from .data import AudioContent
+        from ..utils import keep_zh_en_num
+
+        # 清理文件名，只保留安全字符
+        if audio_name:
+            # 保留文件名中的后缀
+            import os
+            base_name, ext = os.path.splitext(audio_name)
+            cleaned_base = keep_zh_en_num(base_name)
+            audio_name = f"{cleaned_base}{ext}"
 
         if isinstance(url_or_task, str):
-            url_or_task = DOWNLOADER.download_audio(url_or_task, ext_headers=self.headers)
+            url_or_task = DOWNLOADER.download_audio(url_or_task, audio_name=audio_name, ext_headers=self.headers)
 
         return AudioContent(url_or_task, duration)
 

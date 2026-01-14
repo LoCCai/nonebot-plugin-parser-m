@@ -131,10 +131,13 @@ class NCMParser(BaseParser):
         # 解析网易云音乐
         result = await self.parse_ncm(share_url)
         
+        # 创建有意义的音频文件名
+        audio_name = f"{result['title']}-{result['author']}.mp3"
         # 创建音频内容
         audio_content = self.create_audio_content(
             result["audio_url"],
-            0.0  # 暂时无法从API获取准确时长
+            0.0,  # 暂时无法从API获取准确时长
+            audio_name=audio_name
         )
         
         # 创建封面图片内容

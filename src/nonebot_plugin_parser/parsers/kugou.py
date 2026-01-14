@@ -188,9 +188,13 @@ class KuGouParser(BaseParser):
             if not audio_url:
                 raise ParseException("未找到音频资源")
             
+            # 创建有意义的音频文件名
+            audio_name = f"{song_details.get('title', 'unknown')}-{song_details.get('singer', 'unknown')}.mp3"
+            
             audio_content = self.create_audio_content(
                 audio_url,
-                float(song_details.get("duration", 0))
+                float(song_details.get("duration", 0)),
+                audio_name=audio_name
             )
             
             # 创建封面图片内容
