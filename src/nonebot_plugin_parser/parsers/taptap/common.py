@@ -4,6 +4,7 @@ import re
 from datetime import datetime
 from typing import Optional, Dict, Any, List
 
+from httpx import AsyncClient
 from nonebot import logger
 from ..base import BaseParser, handle
 from ..data import Platform, Author, MediaContent, ImageContent, VideoContent
@@ -27,6 +28,17 @@ class TapTapParser(BaseParser):
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
             "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8"
         }
+        self.api_headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36",
+            "Accept": "*/*",
+            "Accept-Encoding": "gzip, deflate, br, zstd",
+            "Accept-Language": "zh-CN,zh;q=0.9,en-US;q=0.8,en;q=0.7",
+            "Referer": "https://www.taptap.cn/",
+            "X-Requested-With": "XMLHttpRequest",
+            "sec-fetch-dest": "empty",
+            "sec-fetch-mode": "cors",
+            "sec-fetch-site": "same-origin"
+        }
     
     def _resolve_nuxt_value(self, root_data: list, value: Any) -> Any:
         """Nuxt数据解压"""
@@ -35,6 +47,45 @@ class TapTapParser(BaseParser):
                 return root_data[value]
             return value
         return value
+    
+    async def _fetch_video_info_from_api(self, video_id: str) -> Optional[Dict[str, Any]]:
+        """通过 API 获取视频信息"""
+        x_ua = "V%3D1%26PN%3DWebApp%26LANG%3Dzh_CN%26VN_CODE%3D102%26LOC%3DCN%26PLT%3DPC%26DS%3DAndroid%26UID%3Df69478c8-27a3-4581-877b-45ade0e61b0b%26OS%3DWindows%26OSV%3D10%26DT%3DPC"
+        url = f"https://www.taptap.cn/webapiv2/video-resource/v1/multi-get?video_ids={video_id}&X-UA={x_ua}"
+        
+        try:
+            async with AsyncClient(headers=self.api_headers, timeout=10.0) as client:
+                response = await client.get(url)
+                if response.status_code != 200:
+                    logger.warning(f"获取视频信息失败, HTTP {response.status_code}")
+                    return None
+                
+                data = response.json()
+                if not data.get("success"):
+                    logger.warning(f"获取视频信息失败, API 返回 success=False")
+                    return None
+                
+                video_list = data.get("data", {}).get("list", [])
+                if not video_list:
+                    logger.warning(f"获取视频信息失败, 视频列表为空")
+                    return None
+                
+                video_info = video_list[0]
+                
+                result = {
+                    "video_url": video_info.get("play_url", {}).get("url"),
+                    "video_url_h265": video_info.get("play_url", {}).get("url_h265"),
+                    "thumbnail": video_info.get("thumbnail", {}).get("original_url"),
+                    "duration": video_info.get("info", {}).get("duration"),
+                    "best_format": video_info.get("info", {}).get("best_format_name")
+                }
+                
+                logger.info(f"成功获取视频信息: video_id={video_id}, best_format={result['best_format']}")
+                return result
+                
+        except Exception as e:
+            logger.warning(f"获取视频信息异常: {e}")
+            return None
     
     async def _fetch_nuxt_data(self, url: str) -> list:
         """获取页面的 Nuxt 数据"""
@@ -163,12 +214,29 @@ class TapTapParser(BaseParser):
             }
         }
         
-        # 补全标题、文本内容、作者信息和发布时间
+        video_id = None
+        
         for item in data:
             if not isinstance(item, dict):
                 continue
                 
-            # 提取标题和摘要（文本内容）
+            if 'pin_video' in item:
+                pin_video = self._resolve_nuxt_value(data, item['pin_video'])
+                if isinstance(pin_video, dict) and 'video_id' in pin_video:
+                    video_id = pin_video['video_id']
+                    break
+        
+        if video_id:
+            logger.info(f"找到视频 ID: {video_id}, 尝试通过 API 获取视频信息")
+            video_info = await self._fetch_video_info_from_api(str(video_id))
+            if video_info and video_info.get('video_url'):
+                result['videos'].append(video_info['video_url'])
+                logger.info(f"成功通过 API 获取视频链接: {video_info['best_format']}")
+        
+        for item in data:
+            if not isinstance(item, dict):
+                continue
+                
             if 'title' in item and 'summary' in item:
                 title = self._resolve_nuxt_value(data, item['title'])
                 summary = self._resolve_nuxt_value(data, item['summary'])
@@ -177,36 +245,30 @@ class TapTapParser(BaseParser):
                 if summary and isinstance(summary, str):
                     result['summary'] = summary
             
-            # 尝试提取完整的文本内容
             if 'content' in item:
                 content = self._resolve_nuxt_value(data, item['content'])
                 if content and isinstance(content, str):
                     result['summary'] = content
             
-            # 尝试从其他可能的字段提取文本
             if 'text' in item:
                 text = self._resolve_nuxt_value(data, item['text'])
                 if text and isinstance(text, str):
                     result['summary'] = text
             
-            # 提取作者信息
             if 'author' in item:
                 author = self._resolve_nuxt_value(data, item['author'])
                 if isinstance(author, dict):
                     result['author']['name'] = self._resolve_nuxt_value(data, author.get('name', '')) or ''
-                    # 尝试提取作者头像
                     if 'avatar' in author:
                         avatar = self._resolve_nuxt_value(data, author['avatar'])
                         if isinstance(avatar, dict) and 'original_url' in avatar:
                             result['author']['avatar'] = self._resolve_nuxt_value(data, avatar['original_url']) or ''
             
-            # 提取发布时间
             if 'created_at' in item or 'publish_time' in item:
                 publish_time = self._resolve_nuxt_value(data, item.get('created_at') or item.get('publish_time'))
                 if publish_time:
                     result['publish_time'] = publish_time
             
-            # 提取统计信息
             if 'stats' in item:
                 stats = self._resolve_nuxt_value(data, item['stats'])
                 if isinstance(stats, dict):
@@ -217,7 +279,6 @@ class TapTapParser(BaseParser):
         if not result['title']:
             result['title'] = "TapTap 动态分享"
         
-        # 图片处理
         images = []
         img_blacklist = ['appicon', 'avatars', 'logo', 'badge', 'emojis', 'market']
         for item in data:
@@ -230,13 +291,17 @@ class TapTapParser(BaseParser):
                     if not any(k in lower_url for k in img_blacklist):
                         if img_url not in images:
                             images.append(img_url)
-            
-            # 尝试从 Nuxt 数据中找视频链接
-            if 'video_url' in item or 'url' in item:
-                video_url = self._resolve_nuxt_value(data, item.get('video_url') or item.get('url'))
-                if isinstance(video_url, str) and ('.mp4' in video_url or '.m3u8' in video_url) and video_url.startswith('http'):
-                    if video_url not in result['videos']:
-                        result['videos'].append(video_url)
+        
+        if not result['videos']:
+            for item in data:
+                if not isinstance(item, dict):
+                    continue
+                if 'video_url' in item or 'url' in item:
+                    video_url = self._resolve_nuxt_value(data, item.get('video_url') or item.get('url'))
+                    if isinstance(video_url, str) and ('.mp4' in video_url or '.m3u8' in video_url) and video_url.startswith('http'):
+                        if video_url not in result['videos']:
+                            result['videos'].append(video_url)
+                            logger.info(f"从 Nuxt 数据中获取视频链接: {video_url}")
         
         result["images"] = images
         return result
