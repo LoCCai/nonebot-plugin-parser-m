@@ -300,9 +300,21 @@ class TapTapParser(BaseParser):
                                                         child_text = self._resolve_nuxt_value(data, child['text'])
                                                         if child_text and isinstance(child_text, str):
                                                             text_parts.append(child_text)
-                                if text_parts and not result['summary']:  # 只有当没有从summary字段提取到内容时，才使用contents字段的内容
-                                    result['summary'] = '\n'.join(text_parts)
-                        
+                                        # 处理带有text引用的内容项
+                                        elif 'text' in self._resolve_nuxt_value(data, content_item):
+                                            text = self._resolve_nuxt_value(data, content_item['text'])
+                                            if text and isinstance(text, str):
+                                                text_parts.append(text)
+                                
+                                # 将contents中的文本内容合并到summary中，不管summary是否已有内容
+                                if text_parts:
+                                    if result['summary']:
+                                        # 如果已经有summary，将contents内容追加到后面
+                                        result['summary'] = result['summary'] + '\n' + '\n'.join(text_parts)
+                                    else:
+                                        # 如果没有summary，直接使用contents内容
+                                        result['summary'] = '\n'.join(text_parts)
+                            
                         # 提取发布时间
                         if 'created_at' in item or 'publish_time' in item:
                             publish_time = self._resolve_nuxt_value(data, item.get('created_at') or item.get('publish_time'))
@@ -327,33 +339,33 @@ class TapTapParser(BaseParser):
                             result['author']['honor_obj_id'] = self._resolve_nuxt_value(data, item['honor_obj_id']) or ''
                         if 'honor_obj_type' in item:
                             result['author']['honor_obj_type'] = self._resolve_nuxt_value(data, item['honor_obj_type']) or ''
-                
-                if not result['title']:
-                    result['title'] = "TapTap 动态分享"
-                
-                # 图片处理
-                images = []
-                img_blacklist = ['appicon', 'avatars', 'logo', 'badge', 'emojis', 'market']
-                
-                for item in data:
-                    if not isinstance(item, dict):
-                        continue
                     
-                    if 'original_url' in item:
-                        img_url = self._resolve_nuxt_value(data, item['original_url'])
-                        if img_url and isinstance(img_url, str) and img_url.startswith('http'):
-                            lower_url = img_url.lower()
-                            if not any(k in lower_url for k in img_blacklist):
-                                if img_url not in images:
-                                    images.append(img_url)
+                    if not result['title']:
+                        result['title'] = "TapTap 动态分享"
                     
-                    # 尝试从 Nuxt 数据中找 MP4 直链
-                    if 'video_url' in item or 'url' in item:
-                        u = self._resolve_nuxt_value(data, item.get('video_url') or item.get('url'))
-                        if isinstance(u, str) and ('.mp4' in u) and u.startswith('http'):
-                            captured_videos.add(u)
-                
-                result["images"] = images
+                    # 图片处理
+                    images = []
+                    img_blacklist = ['appicon', 'avatars', 'logo', 'badge', 'emojis', 'market']
+                    
+                    for item in data:
+                        if not isinstance(item, dict):
+                            continue
+                        
+                        if 'original_url' in item:
+                            img_url = self._resolve_nuxt_value(data, item['original_url'])
+                            if img_url and isinstance(img_url, str) and img_url.startswith('http'):
+                                lower_url = img_url.lower()
+                                if not any(k in lower_url for k in img_blacklist):
+                                    if img_url not in images:
+                                        images.append(img_url)
+                        
+                        # 尝试从 Nuxt 数据中找 MP4 直链
+                        if 'video_url' in item or 'url' in item:
+                            u = self._resolve_nuxt_value(data, item.get('video_url') or item.get('url'))
+                            if isinstance(u, str) and ('.mp4' in u) and u.startswith('http'):
+                                captured_videos.add(u)
+                    
+                    result["images"] = images
                 
                 # === [关键修改] 视频去重和智能选择逻辑 ===
                 unique_videos = []

@@ -4,285 +4,429 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ result.title }}</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
+        @import url("https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&family=Segoe+UI:wght@400;600;700&display=swap");
+
+        :root {
+            --primary-color: #ff6b6b;
+            --secondary-color: #4ecdc4;
+            --dark-color: #2c3e50;
+            --light-color: #ecf0f1;
+            --gray-color: #95a5a6;
+            --border-radius: 12px;
+            --box-shadow: 0 8px 25px rgba(0, 0, 0, 0.08);
+            --transition: all 0.3s ease;
+        }
+        
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
+            font-family: 'Segoe UI', 'Noto Sans SC', sans-serif;
         }
-
+        
         body {
-            font-family: 'HYSongYunLangHeiW-1', sans-serif;
-            background-color: #f5f5f5;
-            color: #333;
-            line-height: 1.6;
-        }
-
-        .container {
-            width: 100%;
-            max-width: 800px;
-            margin: 20px auto;
-            background-color: white;
-            border-radius: 12px;
-            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
-            overflow: hidden;
-        }
-
-        .header {
             display: flex;
-            align-items: center;
-            padding: 16px 20px;
-            background-color: #ff6b6b;
-            color: white;
-        }
-
-        .platform-icon {
-            width: 32px;
-            height: 32px;
-            margin-right: 12px;
-        }
-
-        .platform-name {
-            font-size: 18px;
-            font-weight: bold;
-        }
-
-        .content {
+            justify-content: center;
+            align-items: flex-start;
+            min-height: 100vh;
+            background: transparent; 
             padding: 20px;
         }
-
-        .title {
-            font-size: 24px;
-            font-weight: bold;
-            margin-bottom: 12px;
-            color: #333;
+        
+        .card {
+            width: 750px;
+            background-color: white;
+            border-radius: var(--border-radius);
+            box-shadow: var(--box-shadow);
+            overflow: hidden;
+            position: relative;
+            margin-bottom: 20px;
+            border: 1px solid rgba(0,0,0,0.02);
         }
-
-        .author {
+        
+        /* 装饰性条纹 */
+        .decorative-stripe {
+            position: absolute;
+            width: 100%;
+            height: 5px;
+            background: linear-gradient(90deg, var(--primary-color) 0%, var(--secondary-color) 50%, #9b59b6 100%);
+            top: 0;
+            left: 0;
+            z-index: 5;
+        }
+        
+        /* 中部内容区域 */
+        .content-section {
+            padding: 30px;
+        }
+        
+        /* 作者信息与二维码区域 */
+        .author-qr-row {
             display: flex;
+            justify-content: space-between;
             align-items: center;
-            margin-bottom: 16px;
+            margin-bottom: 25px;
+            padding-bottom: 20px;
+            border-bottom: 1px dashed #eee;
         }
-
-        .author-avatar {
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            margin-right: 12px;
-        }
-
+        
         .author-info {
             display: flex;
-            flex-direction: column;
-        }
-
-        .author-name {
-            font-size: 14px;
-            font-weight: bold;
-            color: #333;
-        }
-
-        .publish-time {
-            font-size: 12px;
-            color: #999;
-        }
-
-        .text {
-            font-size: 16px;
-            margin-bottom: 20px;
-            color: #666;
-            line-height: 1.8;
-            white-space: pre-wrap;
-            word-wrap: break-word;
-        }
-
-        .images {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 12px;
-            margin-bottom: 20px;
-        }
-
-        .image {
-            flex: 1;
-            min-width: calc(33.333% - 8px);
-            max-width: 100%;
-            border-radius: 8px;
-            overflow: hidden;
-        }
-
-        .image img {
-            width: 100%;
-            height: auto;
-            display: block;
-        }
-
-        .media-info {
-            display: flex;
             align-items: center;
-            gap: 20px;
-            margin-bottom: 20px;
-            padding: 12px;
-            background-color: #f9f9f9;
-            border-radius: 8px;
+            gap: 16px;
         }
-
-        .info-item {
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            font-size: 14px;
-            color: #666;
-        }
-
-        .info-item .icon {
-            width: 16px;
-            height: 16px;
-        }
-
-        .footer {
-            padding: 16px 20px;
-            background-color: #f9f9f9;
-            border-top: 1px solid #eee;
-        }
-
-        .url {
-            font-size: 14px;
-            color: #999;
-            word-break: break-all;
-        }
-
-        .btn {
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            padding: 8px 16px;
-            background-color: #ff6b6b;
-            color: white;
-            text-decoration: none;
-            border-radius: 20px;
-            font-size: 14px;
-            font-weight: bold;
-            margin-top: 12px;
-        }
-
-        .btn:hover {
-            background-color: #ff5252;
-        }
-
-        .btn .icon {
-            width: 16px;
-            height: 16px;
-        }
-
-        .video-preview {
-            position: relative;
-            width: 100%;
-            aspect-ratio: 16 / 9;
-            margin-bottom: 20px;
-            border-radius: 8px;
-            overflow: hidden;
-        }
-
-        .video-preview img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-        }
-
-        .play-btn {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
+        
+        .author-avatar {
             width: 64px;
             height: 64px;
-            background-color: rgba(0, 0, 0, 0.6);
             border-radius: 50%;
+            object-fit: cover;
+            border: 3px solid #fff;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+        }
+        
+        .author-details h3 {
+            font-size: 19px;
+            margin-bottom: 6px;
+            color: var(--dark-color);
+            font-weight: 700;
+        }
+        
+        .author-meta {
+            color: var(--gray-color);
+            font-size: 13px;
             display: flex;
             align-items: center;
-            justify-content: center;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        
+        .info-badge {
+            background-color: #f1f8ff;
+            padding: 2px 8px;
+            border-radius: 6px;
+            font-weight: 600;
+            font-family: Consolas, Monaco, monospace;
+            font-size: 12px;
         }
 
-        .play-btn::after {
-            content: '';
-            width: 0;
-            height: 0;
-            border-style: solid;
-            border-width: 12px 0 12px 20px;
-            border-color: transparent transparent transparent white;
+        .info-badge.content-id { 
+            color: #e67e22; 
+            background-color: #fdf2e9; 
+        }
+        
+        .time-text {
+            display: flex; 
+            align-items: center; 
+            gap: 4px;
+        }
+        .time-text::before {
+            content: "\f017";
+            font-family: "Font Awesome 6 Free";
+            font-weight: 400;
+        }
+        
+        .qrcode-placeholder {
+            display: flex; 
+            flex-direction: column; 
+            align-items: flex-end; 
+            gap: 4px;
+            color: #ddd;
+        }
+        .qrcode-icon { 
+            font-size: 32px; 
+            color: #eee; 
+        }
+        
+        /* 统计数据区域 */
+        .stats-container {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 12px;
+            margin-bottom: 25px;
+        }
+        
+        .stat-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 16px;
+            background-color: #f8f9fa;
+            border-radius: 10px;
+            border-left: 4px solid transparent;
+        }
+        
+        .stat-item:nth-child(1) { border-left-color: #e74c3c; }
+        .stat-item:nth-child(2) { border-left-color: #3498db; }
+        .stat-item:nth-child(3) { border-left-color: #2ecc71; }
+        .stat-item:nth-child(4) { border-left-color: #f39c12; }
+        
+        .stat-icon {
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+            display: flex; 
+            align-items: center; 
+            justify-content: center;
+            font-size: 16px;
+            color: white;
+            flex-shrink: 0;
+        }
+        
+        .stat-icon.like { background-color: #e74c3c; }
+        .stat-icon.comment { background-color: #3498db; }
+        .stat-icon.share { background-color: #2ecc71; }
+        .stat-icon.view { background-color: #f39c12; }
+        
+        .stat-content { 
+            display: flex; 
+            flex-direction: column; 
+        }
+        .stat-value { 
+            font-size: 17px; 
+            font-weight: 700; 
+            color: var(--dark-color); 
+            line-height: 1.1; 
+        }
+        .stat-label { 
+            font-size: 12px; 
+            color: var(--gray-color); 
+            margin-top: 2px; 
+        }
+
+        /* 内容标题 */
+        .content-title {
+            font-size: 22px;
+            color: var(--dark-color);
+            margin-bottom: 16px;
+            line-height: 1.4;
+            font-weight: 700;
+            padding-left: 12px;
+            border-left: 4px solid var(--secondary-color);
+        }
+
+        /* 正文描述 */
+        .description {
+            font-size: 15px;
+            line-height: 1.7;
+            color: #444;
+            margin-bottom: 20px;
+            white-space: pre-wrap;
+        }
+        
+        /* 图片展示区域 */
+        .images-container { 
+            margin: 20px 0; 
+        }
+        .images-header {
+            font-size: 14px; 
+            color: var(--dark-color); 
+            font-weight: 600; 
+            margin-bottom: 10px;
+            display: flex; 
+            align-items: center; 
+            gap: 8px;
+        }
+        .images-grid {
+            display: grid; 
+            gap: 6px; 
+            width: 100%; 
+            border-radius: 8px; 
+            overflow: hidden;
+        }
+        .images-grid.single { grid-template-columns: 1fr; }
+        .images-grid.single .image-item { max-height: none; /* 取消高度限制 */ }
+        .images-grid.double { grid-template-columns: 1fr 1fr; }
+        .images-grid.double .image-item { aspect-ratio: 16/9; }
+        .images-grid.quad { grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; }
+        .images-grid.quad .image-item { aspect-ratio: 1/1; }
+        .images-grid.nine { grid-template-columns: repeat(3, 1fr); }
+        .images-grid.nine .image-item { aspect-ratio: 1/1; }
+        
+        .image-item { 
+            position: relative; 
+            overflow: hidden; 
+            background: #eee; 
+        }
+        .image-item img { 
+            width: 100%; 
+            height: 100%; 
+            object-fit: cover; 
+            display: block; 
+        }
+        .more-count {
+            position: absolute; 
+            top: 0; 
+            left: 0; 
+            width: 100%; 
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5); 
+            backdrop-filter: blur(2px);
+            color: white; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center;
+            font-size: 28px; 
+            font-weight: bold;
+        }
+        
+        /* 底部信息栏 */
+        .footer-section {
+            background-color: var(--dark-color);
+            color: rgba(255,255,255,0.8);
+            padding: 15px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 12px;
+        }
+        .footer-info { 
+            display: flex; 
+            gap: 15px; 
+            align-items: center; 
+        }
+        .footer-brand { 
+            font-weight: 600; 
+            letter-spacing: 0.5px; 
+            color: white; 
+            display: flex; 
+            gap: 8px; 
+            align-items: center;
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <div class="header">
-            <img class="platform-icon" src="{{ platform_icon }}" alt="TapTap">
-            <div class="platform-name">TapTap</div>
-        </div>
 
-        <div class="content">
-            <h1 class="title">{{ result.title }}</h1>
+    {# === 宏定义：渲染卡片 === #}
+    {% macro render_card(result) %}
+    
+    {# 变量定义 #}
+    {% set extra = result.extra if result.extra else {} %}
+    {% set stats = extra.stats if extra.stats else {} %}
 
+    <div class="card">
+        <div class="decorative-stripe"></div>
+
+        <div class="content-section">
+            {# --- 作者信息行 --- #}
             {% if result.author %}
-            <div class="author">
-                {% if result.author.avatar %}
-                <img class="author-avatar" src="{{ result.author.avatar }}" alt="{{ result.author.name }}">
-                {% endif %}
+            <div class="author-qr-row">
                 <div class="author-info">
-                    <div class="author-name">{{ result.author.name }}</div>
-                    {% if result.timestamp %}
-                    <div class="publish-time">{{ result.formartted_datetime }}</div>
+                    {% if result.author.avatar %}
+                    <img src="{{ result.author.avatar }}" class="author-avatar">
                     {% endif %}
+                    <div class="author-details">
+                        <h3>{{ result.author.name }}</h3>
+                        <div class="author-meta">
+                            {% if result.timestamp %}
+                            <span class="time-text">{{ result.formartted_datetime }}</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                <div class="qrcode-placeholder">
+                    <i class="fas fa-qrcode qrcode-icon"></i>
                 </div>
             </div>
             {% endif %}
 
-            {% if result.text %}
-            <div class="text">{{ result.text }}</div>
+            {# --- 统计数据 --- #}
+            {% if stats %}
+            {% set stat_items = [] %}
+
+            {# 点赞数 #}
+            {% if stats.likes %}
+                {% set _ = stat_items.append({'key': 'likes', 'value': stats.likes, 'label': '点赞', 'icon': 'fa-thumbs-up', 'color': '#e74c3c', 'cls': 'like'}) %}
             {% endif %}
 
-            {% if result.extra.images %}
-            <div class="images">
-                {% for image in result.extra.images %}
-                <div class="image">
-                    <img src="{{ image }}" alt="">
+            {# 评论数 #}
+            {% if stats.comments %}
+                {% set _ = stat_items.append({'key': 'comments', 'value': stats.comments, 'label': '评论', 'icon': 'fa-comment', 'color': '#3498db', 'cls': 'comment'}) %}
+            {% endif %}
+
+            {# 分享数 #}
+            {% if stats.shares %}
+                {% set _ = stat_items.append({'key': 'shares', 'value': stats.shares, 'label': '分享', 'icon': 'fa-share', 'color': '#2ecc71', 'cls': 'share'}) %}
+            {% endif %}
+
+            {# 浏览数 #}
+            {% if stats.views %}
+                {% set _ = stat_items.append({'key': 'views', 'value': stats.views, 'label': '浏览', 'icon': 'fa-eye', 'color': '#f39c12', 'cls': 'view'}) %}
+            {% endif %}
+
+            {# 只在有统计项时显示整个统计容器 #}
+            {% if stat_items %}
+            <div class="stats-container">
+                {% for item in stat_items %}
+                <div class="stat-item" style="border-left-color: {{ item.color }};">
+                    <div class="stat-icon {{ item.cls }}">
+                        <i class="fas {{ item.icon }}"></i>
+                    </div>
+                    <div class="stat-content">
+                        <div class="stat-value">{{ item.value }}</div>
+                        <div class="stat-label">{{ item.label }}</div>
+                    </div>
                 </div>
                 {% endfor %}
             </div>
             {% endif %}
+            {% endif %}
 
-            {% if result.extra.stats %}
-            <div class="media-info">
-                {% if result.extra.stats.likes %}
-                <div class="info-item">
-                    <span class="icon">❤️</span>
-                    <span>{{ result.extra.stats.likes }}</span>
-                </div>
+            {# --- 主要标题 --- #}
+            {% if result.title %}
+            <div class="content-title">{{ result.title }}</div>
+            {% endif %}
+
+            {# --- 正文描述 --- #}
+            {% if result.text %}
+            <div class="description">{{ result.text }}</div>
+            {% endif %}
+
+            {# --- 图片网格 --- #}
+            {% if result.extra.images %}
+                {% set imgs = result.extra.images %}
+                {% set count = imgs|length %}
+                {% if count > 0 %}
+                    <div class="images-container">
+                        <div class="images-header"><i class="fas fa-images" style="color:#2ecc71"></i> 内容图片</div>
+                        
+                        {% set grid_class = 'single' %}
+                        {% if count == 2 %}{% set grid_class = 'double' %}
+                        {% elif count == 4 %}{% set grid_class = 'quad' %}
+                        {% elif count >= 3 %}{% set grid_class = 'nine' %}
+                        {% endif %}
+
+                        <div class="images-grid {{ grid_class }}">
+                            {% for image in imgs[:9] %}
+                            <div class="image-item">
+                                <img src="{{ image }}">
+                                {% if loop.last and count > 9 %}
+                                <div class="more-count">+{{ count - 9 }}</div>
+                                {% endif %}
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
                 {% endif %}
-                {% if result.extra.stats.comments %}
-                <div class="info-item">
-                    <span class="icon">💬</span>
-                    <span>{{ result.extra.stats.comments }}</span>
-                </div>
-                {% endif %}
-                {% if result.extra.stats.shares %}
-                <div class="info-item">
-                    <span class="icon">🔗</span>
-                    <span>{{ result.extra.stats.shares }}</span>
-                </div>
-                {% endif %}
-            </div>
             {% endif %}
         </div>
 
-        <div class="footer">
-            <div class="url">{{ result.url }}</div>
-            <a class="btn" href="{{ result.url }}" target="_blank">
-                <span class="icon">🔗</span>
-                <span>查看原文</span>
-            </a>
+        {# --- 底部 --- #}
+        <div class="footer-section">
+            <div class="footer-brand">
+                <i class="fas fa-layer-group"></i>
+                <span>TapTap Parser || Designed By LoCCai</span>
+            </div>
+            <div class="footer-info">
+                <span>{{ result.url }}</span>
+            </div>
         </div>
     </div>
+    {% endmacro %}
+
+    {{ render_card(result) }}
+
 </body>
 </html>
