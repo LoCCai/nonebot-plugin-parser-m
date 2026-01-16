@@ -290,9 +290,12 @@ class TapTapParser(BaseParser):
                 result["summary"] = "\n".join(text_parts)
             
             logger.debug(f"API解析结果: videos={len(result['videos'])}, images={len(result['images'])}, content_items={len(result['content_items'])}")
-            return result
-        
-        logger.info(f"[TapTap] API获取数据失败，回退到浏览器解析")
+            
+            # 如果API获取成功但视频获取失败，尝试使用浏览器解析获取视频
+            if result.get("video_id") and not result.get("videos"):
+                logger.info(f"[TapTap] API视频play-info获取失败，尝试浏览器解析获取视频")
+            else:
+                return result
         
         # 使用 set 自动去重完全相同的 URL
         captured_videos: Set[str] = set()

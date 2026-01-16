@@ -478,12 +478,12 @@
                     </div>
                 </div>
                 <div class="qrcode-placeholder">
-            {% if result.qr_code_path %}
-                <img src="{{ result.qr_code_path }}" alt="QR Code" style="width: 77px; height: 77px; border-radius: 8px;" />
-            {% else %}
-                <i class="fas fa-qrcode qrcode-icon"></i>
-            {% endif %}
-        </div>
+                {% if result.qr_code_path %}
+                    <img src="{{ result.qr_code_path }}" alt="QR Code" style="width: 77px; height: 77px; border-radius: 8px;" />
+                {% else %}
+                    <i class="fas fa-qrcode qrcode-icon"></i>
+                {% endif %}
+                </div>
             </div>
             {% endif %}
 
