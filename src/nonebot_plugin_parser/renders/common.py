@@ -713,7 +713,7 @@ class CommonRenderer(ImageRenderer):
         avatar_img = self._load_and_process_avatar(await result.author.get_avatar_path())
 
         text_height = self.fontset.name.line_height
-        time = result.formartted_datetime
+        time = result.formatted_datetime
         if time:
             text_height += self.NAME_TIME_GAP + self.fontset.extra.line_height
 
@@ -723,7 +723,7 @@ class CommonRenderer(ImageRenderer):
             height=header_height,
             avatar=avatar_img,
             name=result.author.name,
-            time=result.formartted_datetime,
+            time=result.formatted_datetime,
             text_height=text_height,
         )
 

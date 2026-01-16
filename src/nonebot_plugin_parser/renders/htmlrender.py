@@ -60,7 +60,7 @@ class HtmlRenderer(ImageRenderer):
         data: dict[str, Any] = {
             "title": result.title,
             "text": result.text,
-            "formartted_datetime": result.formartted_datetime,
+            "formatted_datetime": result.formatted_datetime,
             "extra_info": result.extra_info,
             "extra": result.extra,
         }
