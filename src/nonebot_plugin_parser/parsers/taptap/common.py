@@ -166,12 +166,16 @@ class TapTapParser(BaseParser):
             "url": url,
             "title": "",
             "summary": "",
+            "content_items": [],
             "images": [],
             "videos": [],
             "author": {
                 "name": "",
-                "avatar": ""
+                "avatar": "",
+                "app_title": "",
+                "app_icon": ""
             },
+            "created_time": "",
             "publish_time": "",
             "stats": {
                 "likes": 0,
@@ -179,39 +183,24 @@ class TapTapParser(BaseParser):
                 "shares": 0,
                 "views": 0,
                 "plays": 0
-            }
+            },
+            "video_cover": ""
         }
         
         # 首先尝试使用API获取数据
         api_data = await self._fetch_api_data(post_id)
         if api_data and api_data.get("success"):
             logger.info(f"[TapTap] 使用API获取数据成功")
-            moment_data = api_data.get("data", {}).get("moment", {})
+            data = api_data.get("data", {})
+            moment_data = data.get("moment", {})
             
             # 提取标题
             topic = moment_data.get("topic", {})
             result["title"] = topic.get("title", "TapTap 动态分享")
             
-            # 提取文本内容
-            first_post = api_data.get("data", {}).get("first_post", {})
-            contents = first_post.get("contents", {})
-            json_contents = contents.get("json", [])
-            
-            text_parts = []
-            # 从topic.summary提取初始文本
-            if topic.get("summary"):
-                text_parts.append(topic["summary"])
-            
-            # 从contents.json提取完整文本
-            for content_item in json_contents:
-                if content_item.get("type") == "paragraph":
-                    children = content_item.get("children", [])
-                    for child in children:
-                        if isinstance(child, dict) and "text" in child:
-                            text_parts.append(child["text"])
-            
-            if text_parts:
-                result["summary"] = "\n".join(text_parts)
+            # 提取创建时间和发布时间
+            result["created_time"] = moment_data.get("created_time", "")
+            result["publish_time"] = moment_data.get("publish_time", "")
             
             # 提取作者信息
             author_data = moment_data.get("author", {})
@@ -219,12 +208,15 @@ class TapTapParser(BaseParser):
             result["author"]["name"] = user_data.get("name", "")
             result["author"]["avatar"] = user_data.get("avatar", "")
             
-            # 提取发布时间
-            result["publish_time"] = moment_data.get("publish_time", "")
+            # 提取游戏信息
+            app_data = author_data.get("app", {})
+            result["author"]["app_title"] = app_data.get("title", "")
+            app_icon = app_data.get("icon", {})
+            result["author"]["app_icon"] = app_icon.get("original_url", "")
             
             # 提取统计信息
             stats_data = moment_data.get("stat", {})
-            result["stats"]["likes"] = stats_data.get("ups", 0)  # 修复：使用ups作为点赞数据
+            result["stats"]["likes"] = stats_data.get("ups", 0)  # 使用ups作为点赞数据
             result["stats"]["comments"] = stats_data.get("comments", 0)
             result["stats"]["shares"] = stats_data.get("shares", 0) or 0
             result["stats"]["views"] = stats_data.get("pv_total", 0)
@@ -232,43 +224,72 @@ class TapTapParser(BaseParser):
             
             # 提取视频信息
             pin_video = topic.get("pin_video", {})
-            if pin_video:
-                video_id = pin_video.get("video_id")
-                if video_id:
-                    logger.debug(f"[TapTap] 从API获取到视频ID: {video_id}")
-                    # 将视频ID保存到结果中，以便后续浏览器解析时使用
-                    result["video_id"] = video_id
-                    
-                    # 使用video_id获取视频链接
-                    play_info_url = f"https://www.taptap.cn/video/v1/play-info"
-                    play_info_params = {
-                        "video_id": video_id
-                    }
-                    
-                    try:
-                        async with httpx.AsyncClient(timeout=10.0) as client:
-                            play_response = await client.get(play_info_url, params=play_info_params, headers=self.headers)
-                            play_response.raise_for_status()
-                            play_data = play_response.json()
-                            
-                            if play_data.get("data") and play_data["data"].get("url"):
-                                real_url = play_data["data"]["url"]
-                                result["videos"].append(real_url)
-                                logger.success(f"[TapTap] 从play-info接口获取到视频链接: {real_url[:50]}...")
-                    except Exception as e:
-                        logger.error(f"[TapTap] 获取视频play-info失败: {e}")
-                        # 如果play-info接口失败，继续使用浏览器解析兜底
-                        pass
+            video_id = pin_video.get("video_id")
+            if video_id:
+                logger.debug(f"[TapTap] 从API获取到视频ID: {video_id}")
+                result["video_id"] = video_id
+                
+                # 提取视频封面
+                thumbnail = pin_video.get("thumbnail", {})
+                if thumbnail:
+                    video_cover = thumbnail.get("original_url")
+                    if video_cover:
+                        result["video_cover"] = video_cover
+                        result["images"].append(video_cover)
+                
+                # 使用video_id获取视频链接
+                play_info_url = f"https://www.taptap.cn/video/v1/play-info"
+                play_info_params = {
+                    "video_id": video_id
+                }
+                
+                try:
+                    async with httpx.AsyncClient(timeout=10.0) as client:
+                        play_response = await client.get(play_info_url, params=play_info_params, headers=self.headers)
+                        play_response.raise_for_status()
+                        play_data = play_response.json()
+                        
+                        if play_data.get("data") and play_data["data"].get("url"):
+                            real_url = play_data["data"]["url"]
+                            result["videos"].append(real_url)
+                            logger.success(f"[TapTap] 从play-info接口获取到视频链接: {real_url[:50]}...")
+                except Exception as e:
+                    logger.error(f"[TapTap] 获取视频play-info失败: {e}")
+                    # 如果play-info接口失败，继续使用浏览器解析兜底
+                    pass
             
-            # 图片处理 - 从视频封面或其他地方提取图片
-            sharing_data = moment_data.get("sharing", {})
-            image_data = sharing_data.get("image", {})
-            if image_data:
-                image_url = image_data.get("original_url")
-                if image_url:
-                    result["images"].append(image_url)
+            # 提取文本和图片内容
+            first_post = data.get("first_post", {})
+            contents = first_post.get("contents", {})
+            json_contents = contents.get("json", [])
             
-            logger.debug(f"API解析结果: videos={len(result['videos'])}, images={len(result['images'])}")
+            text_parts = []
+            
+            for content_item in json_contents:
+                item_type = content_item.get("type")
+                result["content_items"].append({
+                    "type": item_type,
+                    "data": content_item
+                })
+                
+                # 处理文本内容
+                if item_type == "paragraph":
+                    children = content_item.get("children", [])
+                    for child in children:
+                        if isinstance(child, dict) and "text" in child:
+                            text_parts.append(child["text"])
+                
+                # 处理图片内容
+                elif item_type == "image":
+                    image_info = content_item.get("info", {}).get("image", {})
+                    original_url = image_info.get("original_url")
+                    if original_url:
+                        result["images"].append(original_url)
+            
+            if text_parts:
+                result["summary"] = "\n".join(text_parts)
+            
+            logger.debug(f"API解析结果: videos={len(result['videos'])}, images={len(result['images'])}, content_items={len(result['content_items'])}")
             return result
         
         logger.info(f"[TapTap] API获取数据失败，回退到浏览器解析")
@@ -700,7 +721,12 @@ class TapTapParser(BaseParser):
             contents=contents,
             extra={
                 'stats': detail['stats'],
-                'images': detail['images']  # 将图片列表放入extra，用于模板渲染
+                'images': detail['images'],  # 将图片列表放入extra，用于模板渲染
+                'content_items': detail.get('content_items', []),
+                'author': detail.get('author', {}),
+                'created_time': detail.get('created_time', ''),
+                'publish_time': detail.get('publish_time', ''),
+                'video_cover': detail.get('video_cover', '')
             }
         )
         

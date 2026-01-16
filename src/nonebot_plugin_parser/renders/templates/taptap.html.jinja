@@ -311,19 +311,28 @@
 
         <div class="content-section">
             {# --- 作者信息行 --- #}
-            {% if result.author %}
+            {% if result.author or result.extra.author %}
+            {% set author_data = result.extra.author if result.extra.author else {} %}
             <div class="author-qr-row">
                 <div class="author-info">
-                    {% if result.author.avatar %}
-                    <img src="{{ result.author.avatar }}" class="author-avatar">
+                    {% if result.author.avatar or author_data.avatar %}
+                    <img src="{{ result.author.avatar or author_data.avatar }}" class="author-avatar">
                     {% else %}
                     <div class="author-avatar" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);"></div>
                     {% endif %}
                     <div class="author-details">
-                        <h3>{{ result.author.name }}</h3>
+                        <h3>{{ result.author.name or author_data.name }}</h3>
                         <div class="author-meta">
                             {% if result.timestamp %}
                             <span class="time-text">{{ result.formatted_datetime }}</span>
+                            {% elif author_data.created_time %}
+                            <span class="time-text">{{ (author_data.created_time|int)|datetimeformat }}</span>
+                            {% endif %}
+                            {% if author_data.app_title %}
+                            <span class="info-badge">
+                                {% if author_data.app_icon %}<img src="{{ author_data.app_icon }}" style="width: 14px; height: 14px; vertical-align: middle; margin-right: 4px;">{% endif %}
+                                {{ author_data.app_title }}
+                            </span>
                             {% endif %}
                         </div>
                     </div>
@@ -392,13 +401,20 @@
             <div class="description">{{ result.text }}</div>
             {% endif %}
 
-            {# --- 图片网格 --- #}
-            {% if result.extra.images %}
+            {# --- 内容媒体展示 --- #}
+            {% if result.extra.images or result.extra.video_cover %}
+                {% set has_video = result.extra.video_cover and result.extra.video_cover != '' %}
                 {% set imgs = result.extra.images %}
-                {% set count = imgs|length %}
-                {% if count > 0 %}
+                {% set count = imgs|length if imgs else 0 %}
+                {% if count > 0 or has_video %}
                     <div class="images-container">
-                        <div class="images-header"><i class="fas fa-images" style="color:#2ecc71"></i> 内容图片</div>
+                        <div class="images-header">
+                            {% if has_video %}
+                            <i class="fas fa-video" style="color:#e74c3c"></i> 视频内容
+                            {% else %}
+                            <i class="fas fa-images" style="color:#2ecc71"></i> 内容图片
+                            {% endif %}
+                        </div>
                         
                         {% set grid_class = 'single' %}
                         {% if count == 2 %}{% set grid_class = 'double' %}
@@ -407,6 +423,15 @@
                         {% endif %}
 
                         <div class="images-grid {{ grid_class }}">
+                            {% if has_video %}
+                            <div class="image-item">
+                                <img src="{{ result.extra.video_cover }}" style="object-fit: cover; width: 100%; height: 100%;">
+                                <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(0, 0, 0, 0.6); border-radius: 50%; width: 60px; height: 60px; display: flex; align-items: center; justify-content: center;">
+                                    <i class="fas fa-play" style="color: white; font-size: 24px; margin-left: 5px;"></i>
+                                </div>
+                            </div>
+                            {% endif %}
+                            
                             {% for image in imgs[:9] %}
                             <div class="image-item">
                                 <img src="{{ image }}">
