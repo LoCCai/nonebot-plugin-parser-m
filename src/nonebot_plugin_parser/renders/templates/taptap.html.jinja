@@ -471,27 +471,19 @@
     {% macro parse_comment_content(content_json) %}
     {% set text = "" %}
     {% if content_json %}
-        {% for paragraph in content_json %}
-            {% if paragraph.type == "paragraph" %}
-                {% for child in paragraph.children %}
+        {% for item in content_json %}
+            {% if item.type == "paragraph" %}
+                {% for child in item.children %}
                     {% if child.text %}
                         {% set text = text + child.text %}
-                    {% endif %}
-                    {% if child.type == "tap_emoji" and child.info and child.info.img %}
-                        {% set img_url = child.info.img.url %}
-                        {% set text = text + '<img src="' + img_url + '" alt="emoji" style="display:inline-block;vertical-align:middle;width:20px;height:20px;margin:0 2px;">' %}
-                    {% elif child.type and child.children %}
-                        {% for emoji_child in child.children %}
-                            {% if emoji_child.text %}
-                                {% set text = text + emoji_child.text %}
-                            {% endif %}
-                        {% endfor %}
                     {% endif %}
                 {% endfor %}
             {% endif %}
         {% endfor %}
+    {% elif content_json is string %}
+        {% set text = content_json %}
     {% endif %}
-    {{ text | safe }}
+    {{ text }}
     {% endmacro %}
     
     {# === 宏定义：渲染卡片 === #}
@@ -500,7 +492,10 @@
     {# 变量定义 #}
     {% set extra = result.extra if result.extra else {} %}
     {% set stats = extra.stats if extra.stats else {} %}
-    {% set comments = extra.comments if extra.comments else [] %}
+    {% set comments = result.comments if result.comments else [] %}
+    {% if not comments and extra.comments %}
+        {% set comments = extra.comments %}
+    {% endif %}
 
     <div class="card">
         <div class="decorative-stripe"></div>

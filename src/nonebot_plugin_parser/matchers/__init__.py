@@ -297,17 +297,36 @@ async def handle_group_msg_emoji_like(event):
                 logger.warning(f"Failed to send fail reaction: {e}")
             return
 
-        # 检查media_contents是否为空
-        if not result.media_contents:
-            logger.debug(f"消息ID {liked_message_id} 对应的解析结果中当前没有延迟发送的媒体内容，等待媒体下载完成")
-            # 不发送失败表情，也不移除消息ID，等待媒体下载完成
-            return
-
-        # 发送延迟的媒体内容
+        # 尝试获取媒体内容，无论media_contents是否为空
         sent = False
         remaining_media = []
         current_sent = False  # 记录当前媒体是否发送成功
         
+        # 检查result的contents属性，看看是否有媒体内容
+        if not result.media_contents:
+            # 如果media_contents为空，尝试从result.contents中获取媒体内容
+            logger.debug(f"尝试从result.contents中获取媒体内容")
+            for content in result.contents:
+                if isinstance(content, VideoContent):
+                    result.media_contents.append((VideoContent, content))
+                    logger.debug(f"添加VideoContent到media_contents")
+                elif isinstance(content, AudioContent):
+                    result.media_contents.append((AudioContent, content))
+                    logger.debug(f"添加AudioContent到media_contents")
+        
+        # 如果仍然没有媒体内容，返回但不移除消息ID
+        if not result.media_contents:
+            logger.debug(f"消息ID {liked_message_id} 对应的解析结果中没有可发送的媒体内容")
+            # 发送"失败"的表情（使用用户指定的表情ID 10060）
+            try:
+                if liked_message_id:
+                    await message_reaction("10060", message_id=str(liked_message_id))
+            except Exception as e:
+                logger.warning(f"Failed to send fail reaction: {e}")
+            # 不删除消息ID，等待媒体下载完成
+            return
+        
+        # 发送延迟的媒体内容
         for media_type, media_item in result.media_contents:
             try:
                 path = None
