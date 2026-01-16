@@ -311,6 +311,38 @@
     <div class="card">
         <div class="decorative-stripe"></div>
 
+        {# --- 封面区域 --- #}
+        {% set cover_url = result.extra.video_cover %}
+        {% set has_video = cover_url and cover_url != '' %}
+        {% if not cover_url and result.extra.images and result.extra.images|length > 0 %}
+            {% set cover_url = result.extra.images[0] %}
+        {% endif %}
+
+        {% if cover_url %}
+        <div class="cover-section" style="position: relative; width: 100%; height: 300px; overflow: hidden;">
+            <img src="{{ cover_url }}" style="width: 100%; height: 100%; object-fit: cover;" alt="Cover">
+            <div class="cover-overlay" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: linear-gradient(to bottom, transparent, rgba(0,0,0,0.3));"></div>
+            
+            <!-- 类型标签 -->
+            <div class="tag type-tag" style="position: absolute; top: 15px; left: 15px; background: rgba(0,0,0,0.6); color: white; padding: 5px 10px; border-radius: 4px; font-size: 12px; display: flex; align-items: center; gap: 5px;">
+                {% if has_video %}
+                <i class="fas fa-video"></i>
+                <span>视频</span>
+                {% else %}
+                <i class="fas fa-images"></i>
+                <span>图文</span>
+                {% endif %}
+            </div>
+            
+            <!-- 播放按钮 -->
+            {% if has_video %}
+            <div class="play-btn-overlay" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(0,0,0,0.6); border-radius: 50%; width: 60px; height: 60px; display: flex; align-items: center; justify-content: center; cursor: pointer;">
+                <i class="fas fa-play" style="color: white; font-size: 24px; margin-left: 5px;"></i>
+            </div>
+            {% endif %}
+        </div>
+        {% endif %}
+
         <div class="content-section">
             {# --- 作者信息行 --- #}
             {% if result.author or result.extra.author %}
@@ -329,10 +361,14 @@
                             <span class="time-text">{{ result.formatted_datetime }}</span>
                             {% elif result.timestamp %}
                             <span class="time-text">{{ result.formatted_datetime }}</span>
-                            {% elif author_data.created_time %}
-                            <span class="time-text">{{ (author_data.created_time|int)|datetimeformat }}</span>
+                            {% elif result.extra.publish_time %}
+                            <span class="time-text">{{ (result.extra.publish_time|int)|datetimeformat }}</span>
+                            {% elif result.extra.created_time %}
+                            <span class="time-text">{{ (result.extra.created_time|int)|datetimeformat }}</span>
                             {% elif author_data.publish_time %}
                             <span class="time-text">{{ (author_data.publish_time|int)|datetimeformat }}</span>
+                            {% elif author_data.created_time %}
+                            <span class="time-text">{{ (author_data.created_time|int)|datetimeformat }}</span>
                             {% endif %}
                             {% if author_data.app_title %}
                             <span class="info-badge">
@@ -448,23 +484,8 @@
             {% set imgs = result.extra.images %}
             {% set count = imgs|length if imgs else 0 %}
             
-            {# 视频内容展示 #}
-            {% if has_video %}
-            <div class="images-container">
-                <div class="images-header">
-                    <i class="fas fa-video" style="color:#e74c3c"></i> 视频内容
-                </div>
-                <div class="images-grid single">
-                    <div class="image-item">
-                        <img src="{{ result.extra.video_cover }}" style="object-fit: cover; width: 100%; height: 100%;">
-                        <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(0, 0, 0, 0.6); border-radius: 50%; width: 60px; height: 60px; display: flex; align-items: center; justify-content: center;">
-                            <i class="fas fa-play" style="color: white; font-size: 24px; margin-left: 5px;"></i>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            {% elif count > 0 %}
-            {# 图片内容展示，当没有视频时才显示 #}
+            {# 只有图文内容才显示图片列表，视频的话下面不放图片 #}
+            {% if not has_video and count > 0 %}
             <div class="images-container">
                 <div class="images-header">
                     <i class="fas fa-images" style="color:#2ecc71"></i> 内容图片
