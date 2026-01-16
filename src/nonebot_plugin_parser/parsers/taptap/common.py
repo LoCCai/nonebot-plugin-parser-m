@@ -344,14 +344,64 @@ class TapTapParser(BaseParser):
         comments = await self._fetch_comments(post_id)
         if comments:
             logger.debug(f"评论：{comments}")
-            # 只保留前10条评论
-            top_comments = comments[:10]
-            for comment in top_comments:
-                # 只保留每条评论的前5条回复
+            # 处理评论数据，提取纯文本内容
+            processed_comments = []
+            for comment in comments[:10]:  # 只保留前10条评论
+                processed_comment = {
+                    "id": comment.get("id", ""),
+                    "author": {
+                        "id": comment.get("author", {}).get("id", ""),
+                        "name": comment.get("author", {}).get("name", ""),
+                        "avatar": comment.get("author", {}).get("avatar", ""),
+                        "badges": comment.get("author", {}).get("badges", [])
+                    },
+                    "content": "",
+                    "formatted_time": comment.get("formatted_time", ""),
+                    "ups": comment.get("ups", 0),
+                    "comments": comment.get("comments", 0),
+                    "child_posts": []
+                }
+                
+                # 提取评论内容
+                if comment.get("contents", {}).get("json"):
+                    content_json = comment["contents"]["json"]
+                    for item in content_json:
+                        if item.get("type") == "paragraph":
+                            for child in item.get("children", []):
+                                if child.get("text"):
+                                    processed_comment["content"] += child["text"]
+                
+                # 处理回复
                 if 'child_posts' in comment:
-                    comment['child_posts'] = comment['child_posts'][:5]
-            result['comments'] = top_comments
-            logger.debug(f"[TapTap] 获取到 {len(top_comments)} 条热门评论")
+                    for reply in comment['child_posts'][:5]:  # 只保留前5条回复
+                        processed_reply = {
+                            "id": reply.get("id", ""),
+                            "author": {
+                                "id": reply.get("author", {}).get("id", ""),
+                                "name": reply.get("author", {}).get("name", ""),
+                                "avatar": reply.get("author", {}).get("avatar", ""),
+                                "badges": reply.get("author", {}).get("badges", [])
+                            },
+                            "content": "",
+                            "formatted_time": reply.get("formatted_time", ""),
+                            "ups": reply.get("ups", 0)
+                        }
+                        
+                        # 提取回复内容
+                        if reply.get("contents", {}).get("json"):
+                            reply_json = reply["contents"]["json"]
+                            for item in reply_json:
+                                if item.get("type") == "paragraph":
+                                    for child in item.get("children", []):
+                                        if child.get("text"):
+                                            processed_reply["content"] += child["text"]
+                        
+                        processed_comment["child_posts"].append(processed_reply)
+                
+                processed_comments.append(processed_comment)
+            
+            result['comments'] = processed_comments
+            logger.debug(f"[TapTap] 获取到 {len(processed_comments)} 条热门评论")
         else:
             logger.error(f"[TapTap] 获取评论数据失败")
 

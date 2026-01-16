@@ -728,7 +728,7 @@
                         <span class="comment-time">{{ comment.formatted_time }}</span>
                     </div>
                     <div class="comment-text">
-                        {{ parse_comment_content(comment.contents.json) }}
+                        {{ comment.content }}
                     </div>
                     <div class="comment-stats">
                         {% if comment.ups %}
@@ -766,7 +766,7 @@
                                     <span class="comment-time">{{ reply.formatted_time }}</span>
                                 </div>
                                 <div class="comment-text">
-                                    {{ parse_comment_content(reply.contents.json) }}
+                                    {{ reply.content }}
                                 </div>
                                 <div class="comment-stats">
                                     {% if reply.ups %}
