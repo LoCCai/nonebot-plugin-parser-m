@@ -270,11 +270,11 @@ class StreamDownloader:
             fetch_headers["Referer"] = "https://www.taptap.cn/"
             fetch_headers["Origin"] = "https://www.taptap.cn"
         
-        # 使用 stream 方法而不是 get 方法，因为 stream 方法返回的对象支持 async with
-        async with self.client.stream("GET", url, headers=fetch_headers, timeout=10, follow_redirects=True) as resp:
-            if resp.status_code != 200:
-                raise Exception(f"请求失败: {resp.status_code}")
-            return await resp.text()
+        # 使用 get 方法获取完整响应
+        resp = await self.client.get(url, headers=fetch_headers, timeout=10, follow_redirects=True)
+        if resp.status_code != 200:
+            raise Exception(f"请求失败: {resp.status_code}")
+        return resp.text
     
     async def _has_ffmpeg(self) -> bool:
         try:
