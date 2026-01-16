@@ -773,6 +773,36 @@ class TapTapParser(BaseParser):
                     # 如果解析失败，使用None
                     pass
         
+        # 格式化时间函数
+        def format_time(timestamp):
+            if timestamp:
+                try:
+                    if isinstance(timestamp, int):
+                        dt = datetime.fromtimestamp(timestamp)
+                        return dt.strftime('%Y-%m-%d %H:%M:%S')
+                except (ValueError, TypeError):
+                    pass
+            return ''
+        
+        # 格式化时间
+        formatted_publish_time = format_time(detail.get('publish_time'))
+        formatted_created_time = format_time(detail.get('created_time'))
+        
+        # 格式化评论时间
+        formatted_comments = []
+        for comment in detail.get('comments', []):
+            formatted_comment = comment.copy()
+            formatted_comment['formatted_time'] = format_time(comment.get('created_time'))
+            
+            # 格式化回复时间
+            formatted_replies = []
+            for reply in comment.get('child_posts', []):
+                formatted_reply = reply.copy()
+                formatted_reply['formatted_time'] = format_time(reply.get('created_time'))
+                formatted_replies.append(formatted_reply)
+            formatted_comment['child_posts'] = formatted_replies
+            formatted_comments.append(formatted_comment)
+        
         # 构建解析结果
         result = self.result(
             title=detail['title'],
@@ -788,11 +818,13 @@ class TapTapParser(BaseParser):
                 'author': detail.get('author', {}),
                 'created_time': detail.get('created_time', ''),
                 'publish_time': detail.get('publish_time', ''),
+                'formatted_created_time': formatted_created_time,
+                'formatted_publish_time': formatted_publish_time,
                 'video_cover': detail.get('video_cover', ''),
                 'app': detail.get('app', {}),  # 添加游戏信息
                 'seo_keywords': detail.get('seo_keywords', ''),  # 添加SEO关键词
                 'footer_images': detail.get('footer_images', []),  # 添加footer_images
-                'comments': detail.get('comments', [])  # 添加评论数据
+                'comments': formatted_comments  # 添加格式化后的评论数据
             }
         )
         

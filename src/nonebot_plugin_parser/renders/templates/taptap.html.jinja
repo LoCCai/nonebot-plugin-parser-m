@@ -544,16 +544,10 @@
                         <div class="author-meta">
                             {% if result.formatted_datetime %}
                             <span class="time-text">{{ result.formatted_datetime }}</span>
-                            {% elif result.timestamp %}
-                            <span class="time-text">{{ result.formatted_datetime }}</span>
-                            {% elif result.extra.publish_time %}
-                            <span class="time-text">{{ (result.extra.publish_time|int)|datetimeformat }}</span>
-                            {% elif result.extra.created_time %}
-                            <span class="time-text">{{ (result.extra.created_time|int)|datetimeformat }}</span>
-                            {% elif author_data.publish_time %}
-                            <span class="time-text">{{ (author_data.publish_time|int)|datetimeformat }}</span>
-                            {% elif author_data.created_time %}
-                            <span class="time-text">{{ (author_data.created_time|int)|datetimeformat }}</span>
+                            {% elif result.extra.formatted_publish_time %}
+                            <span class="time-text">{{ result.extra.formatted_publish_time }}</span>
+                            {% elif result.extra.formatted_created_time %}
+                            <span class="time-text">{{ result.extra.formatted_created_time }}</span>
                             {% endif %}
                             {% if author_data.app_title %}
                             <span class="info-badge">
@@ -708,9 +702,9 @@
                 <img src="{{ comment.author.avatar }}" alt="用户头像" class="comment-avatar">
                 <div class="comment-content">
                     <div class="comment-author-row">
-                        <span class="comment-author">{{ comment.author.name }}</span>
-                        <span class="comment-time">{{ (comment.created_time|int)|datetimeformat }}</span>
-                    </div>
+                            <span class="comment-author">{{ comment.author.name }}</span>
+                            <span class="comment-time">{{ comment.formatted_time }}</span>
+                        </div>
                     <div class="comment-text">
                         {{ parse_comment_content(comment.contents.json) }}
                     </div>
@@ -738,7 +732,7 @@
                             <div class="reply-content">
                                 <div class="reply-author-row">
                                     <span class="reply-author">{{ reply.author.name }}</span>
-                                    <span class="reply-time">{{ (reply.created_time|int)|datetimeformat }}</span>
+                                    <span class="reply-time">{{ reply.formatted_time }}</span>
                                 </div>
                                 <div class="reply-text">
                                     {{ parse_comment_content(reply.contents.json) }}

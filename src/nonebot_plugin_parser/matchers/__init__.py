@@ -235,6 +235,7 @@ async def handle_group_msg_emoji_like(event):
     is_group_emoji_like = False
     emoji_id = 0
     liked_message_id = 0
+    is_add = True  # 默认值，避免Pylance警告
 
     # 处理不同形式的事件对象（字典或对象）
     if isinstance(event, dict):
@@ -243,6 +244,7 @@ async def handle_group_msg_emoji_like(event):
             is_group_emoji_like = True
             emoji_id = event["likes"][0]["emoji_id"]
             liked_message_id = event["message_id"]
+            is_add = event.get("is_add", True)
     else:
         # 对象形式的事件
         if hasattr(event, "notice_type") and event.notice_type == "group_msg_emoji_like":
@@ -254,11 +256,16 @@ async def handle_group_msg_emoji_like(event):
                     emoji_id = event.likes[0].emoji_id
             if hasattr(event, "message_id"):
                 liked_message_id = event.message_id
+            is_add = getattr(event, "is_add", True)
     emoji_id = int(emoji_id)
     liked_message_id = int(liked_message_id)
-    logger.debug(f"emoji_id:{emoji_id} | liked_message_id:{liked_message_id}")
+    logger.debug(f"emoji_id:{emoji_id} | liked_message_id:{liked_message_id} | is_add:{is_add}")
     # 检查是否是group_msg_emoji_like事件且表情ID有效
     if not is_group_emoji_like or not emoji_id:
+        return
+
+    # 只有当is_add为True时才处理点赞事件，忽略取消点赞事件
+    if not is_add:
         return
 
     # 检查表情ID是否在配置列表中
@@ -359,9 +366,13 @@ async def handle_group_msg_emoji_like(event):
         # 更新媒体内容列表，保留未发送成功的媒体
         result.media_contents = remaining_media
         
-        # 如果所有媒体都发送成功，清空媒体内容列表
+        # 如果所有媒体都发送成功，清空媒体内容列表并从缓存中移除消息ID
         if not remaining_media:
             result.media_contents.clear()
+            # 从缓存中移除已处理的消息ID，避免重复发送
+            if str(liked_message_id) in _MSG_ID_RESULT_MAP:
+                del _MSG_ID_RESULT_MAP[str(liked_message_id)]
+                logger.debug(f"从_MSG_ID_RESULT_MAP中移除消息ID: {liked_message_id}")
 
         # 发送对应的表情
         if sent:
