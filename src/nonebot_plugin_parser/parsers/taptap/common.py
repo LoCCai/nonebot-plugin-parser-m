@@ -356,7 +356,7 @@ class TapTapParser(BaseParser):
                         "badges": comment.get("author", {}).get("badges", [])
                     },
                     "content": "",
-                    "formatted_time": comment.get("formatted_time", ""),
+                    "formatted_time": comment.get("updated_time", ""),
                     "ups": comment.get("ups", 0),
                     "comments": comment.get("comments", 0),
                     "child_posts": []
@@ -370,7 +370,12 @@ class TapTapParser(BaseParser):
                             for child in item.get("children", []):
                                 if child.get("text"):
                                     processed_comment["content"] += child["text"]
-                
+                                if child.get("type", '') == "tap_emoji":
+                                    image_info = child.get("info", {}).get("image", {})
+                                    original_url = image_info.get("original_url")
+                                    if original_url:
+                                        tap_emoji_text = child.get("children", [])[0]['text']
+                                        processed_comment["content"] += f'<img src="{original_url}" alt="表情" class="comment-badge" title="{tap_emoji_text}">'
                 # 处理回复
                 if 'child_posts' in comment:
                     for reply in comment['child_posts'][:5]:  # 只保留前5条回复
