@@ -320,8 +320,16 @@ class TapTapParser(BaseParser):
                 if item_type == "paragraph":
                     children = content_item.get("children", [])
                     for child in children:
-                        if isinstance(child, dict) and "text" in child:
-                            text_parts.append(child["text"])
+                        if isinstance(child, dict):
+                            if "text" in child and child["text"]:
+                                text_parts.append(child["text"])
+                            # 处理表情
+                            elif child.get("type") == "tap_emoji":
+                                img_info = child.get("info", {}).get("img", {})
+                                original_url = img_info.get("original_url")
+                                if original_url:
+                                    # 将表情转换为HTML img标签，与文字一起渲染
+                                    text_parts.append(f'<img src="{original_url}" alt="表情" style="width: 20px; height: 20px; vertical-align: middle; margin: 0 2px; object-fit: contain;">')
                 
                 elif item_type == "image":
                     image_info = content_item.get("info", {}).get("image", {})
@@ -330,7 +338,7 @@ class TapTapParser(BaseParser):
                         result["images"].append(original_url)
             
             if text_parts:
-                result["summary"] = "\n".join(text_parts)
+                result["summary"] = "".join(text_parts)
             
             api_success = True
             logger.debug(f"API解析结果: videos={len(result['videos'])}, images={len(result['images'])}, content_items={len(result['content_items'])}")

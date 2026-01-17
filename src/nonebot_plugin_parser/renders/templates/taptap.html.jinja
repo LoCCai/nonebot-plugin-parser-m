@@ -729,7 +729,7 @@
 
             {# --- 正文描述 --- #}
             {% if result.text %}
-            <div class="description">{{ result.text }}</div>
+            <div class="description">{{ result.text | safe }}</div>
             {% endif %}
 
             {# --- 内容媒体展示 --- #}
