@@ -733,8 +733,10 @@
                             {# 徽章展示 #}
                             {% if comment.author.badges and comment.author.badges|length > 0 %}
                                 {% for badge in comment.author.badges %}
-                                    {% if badge.icon and badge.icon.small %}
-                                        <img src="{{ badge.icon.small }}" alt="徽章" class="comment-badge" title="{{ badge.title }}">
+                                    {% if badge.title %}
+                                        <span class="comment-badge" style="background-color: {{ badge.style.background_color }}; color: {{ badge.style.font_color }}; padding: 2px 8px; border-radius: 12px; font-size: 12px; margin-left: 6px;">
+                                            {{ badge.title }}
+                                        </span>
                                     {% endif %}
                                 {% endfor %}
                             {% endif %}
@@ -784,8 +786,10 @@
                                         {# 回复者徽章展示 #}
                                         {% if reply.author.badges and reply.author.badges|length > 0 %}
                                             {% for badge in reply.author.badges %}
-                                                {% if badge.icon and badge.icon.small %}
-                                                    <img src="{{ badge.icon.small }}" alt="徽章" class="comment-badge" title="{{ badge.title }}">
+                                                {% if badge.title %}
+                                                    <span class="comment-badge" style="background-color: {{ badge.style.background_color }}; color: {{ badge.style.font_color }}; padding: 2px 8px; border-radius: 12px; font-size: 12px; margin-left: 6px;">
+                                                        {{ badge.title }}
+                                                    </span>
                                                 {% endif %}
                                             {% endfor %}
                                         {% endif %}
