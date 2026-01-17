@@ -805,7 +805,7 @@
                     
                     {# 评论内容 #}
                     <div class="comment-text">
-                        {{ comment.content }}
+                        {{ comment.content | safe }}
                     </div>
                     
                     {# 统计信息 #}
@@ -861,7 +861,7 @@
                                 
                                 {# 回复内容 #}
                                 <div class="reply-text">
-                                    {{ reply.content }}
+                                    {{ reply.content | safe }}
                                 </div>
                                 
                                 {# 回复统计信息 #}

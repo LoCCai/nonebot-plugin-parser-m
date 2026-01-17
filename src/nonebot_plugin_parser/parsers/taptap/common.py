@@ -425,7 +425,8 @@ class TapTapParser(BaseParser):
                 if comment.get("contents", {}).get("json"):
                     content_json = comment["contents"]["json"]
                     for item in content_json:
-                        if item.get("type") == "paragraph":
+                        item_type = item.get("type")
+                        if item_type == "paragraph":
                             for child in item.get("children", []):
                                 if child.get("text"):
                                     processed_comment["content"] += child["text"]
@@ -434,7 +435,14 @@ class TapTapParser(BaseParser):
                                     original_url = image_info.get("original_url")
                                     if original_url:
                                         tap_emoji_text = child.get("children", [])[0]['text']
-                                        processed_comment["content"] += f'<img src="{original_url}" alt="表情" class="comment-badge" title="{tap_emoji_text}">'
+                                        processed_comment["content"] += f'<img src="{original_url}" alt="表情" class="comment-badge" title="{tap_emoji_text}" style="width: 20px; height: 20px; vertical-align: middle; margin: 0 2px; object-fit: contain;">'
+                        # 处理评论中的图片
+                        elif item_type == "image":
+                            image_info = item.get("info", {}).get("image", {})
+                            original_url = image_info.get("original_url")
+                            if original_url:
+                                # 将图片转换为HTML img标签，添加到评论内容中
+                                processed_comment["content"] += f'<div class="comment-image" style="margin: 10px 0;"><img src="{original_url}" alt="评论图片" style="max-width: 100%; height: auto; border-radius: 8px;"></div>'
                 # 处理回复
                 if 'child_posts' in comment:
                     for reply in comment['child_posts'][:5]:  # 只保留前5条回复
@@ -481,10 +489,24 @@ class TapTapParser(BaseParser):
                         if reply.get("contents", {}).get("json"):
                             reply_json = reply["contents"]["json"]
                             for item in reply_json:
-                                if item.get("type") == "paragraph":
+                                item_type = item.get("type")
+                                if item_type == "paragraph":
                                     for child in item.get("children", []):
                                         if child.get("text"):
                                             processed_reply["content"] += child["text"]
+                                        if child.get("type", '') == "tap_emoji":
+                                            image_info = child.get("info", {}).get("image", {})
+                                            original_url = image_info.get("original_url")
+                                            if original_url:
+                                                tap_emoji_text = child.get("children", [])[0]['text']
+                                                processed_reply["content"] += f'<img src="{original_url}" alt="表情" class="comment-badge" title="{tap_emoji_text}" style="width: 20px; height: 20px; vertical-align: middle; margin: 0 2px; object-fit: contain;">'
+                                # 处理回复中的图片
+                                elif item_type == "image":
+                                    image_info = item.get("info", {}).get("image", {})
+                                    original_url = image_info.get("original_url")
+                                    if original_url:
+                                        # 将图片转换为HTML img标签，添加到回复内容中
+                                        processed_reply["content"] += f'<div class="comment-image" style="margin: 10px 0;"><img src="{original_url}" alt="回复图片" style="max-width: 100%; height: auto; border-radius: 8px;"></div>'
                         
                         processed_comment["child_posts"].append(processed_reply)
                 
