@@ -156,13 +156,17 @@ class BaseRenderer(ABC):
 
         if forwardable_segs:
             # 添加原始动态的文本，包含作者信息
+            # 对于转发动态，当前result是转发者的动态，result.repost是被转发者的内容
             if result.text:
+                # 当前result是转发者的动态，所以作者是转发者
                 author_name = result.author.name if result.author else "未知用户"
                 forwardable_segs.append(f"{author_name}：{result.text}")
             
             # 添加转发内容的标题和文本，包含原作者信息
             if result.repost:
+                # result.repost是被转发者的内容，所以repost_author是被转发者
                 repost_author = result.repost.author.name if result.repost.author else "未知用户"
+                # 当前result是转发者的动态，所以current_author是转发者
                 current_author = result.author.name if result.author else "未知用户"
                 
                 repost_text = []
@@ -172,10 +176,13 @@ class BaseRenderer(ABC):
                     repost_text.append(result.repost.text)
                 
                 # 构造转发文本，格式为：XXXB[转发XXXA]：XXX内容 XXXA:XXX内容
+                # 其中XXXB是转发者，XXXA是被转发者
                 if repost_text:
                     repost_content = "\n".join(repost_text)
+                    # 转发者[转发被转发者]：被转发者的内容
                     forwardable_segs.append(f"{current_author}[转发{repost_author}]：{repost_content}")
-                    forwardable_segs.append(f"{repost_author}：{repost_content}")
+                    # 被转发者：被转发者的内容
+                    forwardable_segs.append(f"{repost_author}[被转作者]：{repost_content}")
 
             if pconfig.need_forward_contents or len(forwardable_segs) > 4:
                 forward_msg = UniHelper.construct_forward_message(forwardable_segs + dynamic_segs)
