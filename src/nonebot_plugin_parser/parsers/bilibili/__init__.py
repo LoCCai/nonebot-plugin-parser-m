@@ -285,6 +285,7 @@ class BilibiliParser(BaseParser):
                 orig_title = orig_item.title
                 orig_text = orig_item.text
                 orig_author = orig_item.name
+                major_type = None
                 
                 if major_info:
                     major_type = major_info.get("type")
@@ -309,7 +310,7 @@ class BilibiliParser(BaseParser):
                     orig_cover = orig_item.image_urls[0]
 
                 # 【新增】如果是专栏文章，使用 opus 解析获取完整内容
-                if is_article:
+                if is_article and major_info:
                     opus_data = major_info.get("opus", {})
                     if opus_data and opus_data.get("jump_url"):
                         import re
@@ -328,7 +329,7 @@ class BilibiliParser(BaseParser):
                             except Exception as e:
                                 logger.warning(f"解析转发专栏失败: {e}")
                 # 【新增】如果是视频，使用视频解析获取完整内容
-                elif major_type == "MAJOR_TYPE_ARCHIVE" and major_info.get("archive"):
+                elif major_info and major_type == "MAJOR_TYPE_ARCHIVE" and major_info.get("archive"):
                     archive_data = major_info.get("archive", {})
                     bvid = archive_data.get("bvid")
                     if bvid:
