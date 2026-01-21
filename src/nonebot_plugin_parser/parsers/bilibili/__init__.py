@@ -931,14 +931,14 @@ class BilibiliParser(BaseParser):
                         })
                     
                     return processed_comments
-                logger.debug(f"[Bilibili] 热评API返回数据为空或错误: code={data.get('code')}, message={data.get('message')}， `https://api.bilibili.com/x/v2/reply` 作为兜底，我们获取每页50项，查看第一页")
-                # 使用普通评论API作为兜底，按点赞数排序，获取第一页50条
+                logger.debug(f"[Bilibili] 热评API返回数据为空或错误: code={data.get('code')}, message={data.get('message')}， `https://api.bilibili.com/x/v2/reply` 作为兜底，我们获取每页20项，查看第一页")
+                # 使用普通评论API作为兜底，按点赞数排序，获取第一页20条
                 fallback_api_url = "https://api.bilibili.com/x/v2/reply"
                 fallback_params = {
                     "oid": oid,
                     "type": type,
                     "sort": 1,  # 按点赞数排序
-                    "ps": 50,  # 每页50条
+                    "ps": 20,  # 每页20条，根据API文档，ps参数定义域是1-20
                     "pn": 1,   # 第1页
                 }
                 
