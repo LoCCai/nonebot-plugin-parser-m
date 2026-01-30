@@ -996,7 +996,7 @@ class TapTapParser(BaseParser):
                     result["author"]["avatar"] = user_data.get("avatar", "")
                     
                     # 评论内容
-                    result["summary"] = review_data.get("contents", {}).get("text", "")
+                    result["summary"] = review_data.get("contents", {}).get("text", "").replace("<br>", "\n").replace("<br />", "\n")
                     
                     # 评论图片
                     for img_item in review_data.get("images", []):
