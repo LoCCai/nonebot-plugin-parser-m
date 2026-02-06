@@ -14,12 +14,26 @@ from .helper import UniMessage, UniHelper
 from .matchers import KEYWORD_PARSER_MAP, _RESULT_CACHE, _MSG_ID_RESULT_MAP
 
 
-async def parse_url(url: str, send_message: bool = True) -> Optional[ParseResult]:
+from typing import Optional, Dict, Any, List, Tuple, Union
+from nonebot.adapters.onebot.v11 import MessageEvent, GroupMessageEvent
+
+async def parse_url(
+    url: str, 
+    send_message: bool = True, 
+    event: Optional[MessageEvent] = None, 
+    group_id: Optional[int] = None, 
+    user_id: Optional[int] = None,
+    at_all: bool = False
+) -> Optional[ParseResult]:
     """解析URL并可选发送消息
     
     Args:
         url: 要解析的URL
         send_message: 是否发送消息，默认为True
+        event: 消息事件对象，用于获取发送目标
+        group_id: 群聊ID，如果event为None则使用
+        user_id: 用户ID，如果event为None则使用
+        at_all: 是否@全体成员，默认为False
         
     Returns:
         解析结果，如果解析失败返回None
@@ -53,7 +67,7 @@ async def parse_url(url: str, send_message: bool = True) -> Optional[ParseResult
         
         if send_message:
             # 发送消息，使用接口解析的结果默认发送卡片和视频
-            await _send_parse_result(result, url)
+            await _send_parse_result(result, url, event, group_id, user_id, at_all)
         
         return result
     except Exception as e:
@@ -61,20 +75,59 @@ async def parse_url(url: str, send_message: bool = True) -> Optional[ParseResult
         return None
 
 
-async def _send_parse_result(result: ParseResult, cache_key: str) -> None:
+async def _send_parse_result(result: ParseResult, cache_key: str, event: Optional[MessageEvent] = None, group_id: Optional[int] = None, user_id: Optional[int] = None, at_all: bool = False) -> None:
     """发送解析结果，默认发送卡片和视频
     
     Args:
         result: 解析结果
         cache_key: 缓存键，用于关联消息ID
+        event: 消息事件对象，用于获取发送目标
+        group_id: 群聊ID，如果event为None则使用
+        user_id: 用户ID，如果event为None则使用
+        at_all: 是否@全体成员，默认为False
     """
     # 获取渲染器
     renderer = get_renderer(result.platform.name)
     
+    # 构建发送参数
+    send_kwargs = {}
+    if event:
+        send_kwargs["event"] = event
+    elif group_id:
+        send_kwargs["group_id"] = group_id
+    elif user_id:
+        send_kwargs["user_id"] = user_id
+    
+    if at_all:
+        send_kwargs["at_all"] = at_all
+    
+    async def safe_send(message, **kwargs):
+        """安全发送消息，处理可能的参数错误"""
+        try:
+            return await message.send(**kwargs)
+        except TypeError as e:
+            # 如果send方法不支持某些参数，尝试移除不支持的参数
+            logger.debug(f"发送消息参数错误: {e}，尝试降级发送")
+            # 移除可能不支持的参数
+            basic_kwargs = {}
+            if "event" in kwargs:
+                basic_kwargs["event"] = kwargs["event"]
+            elif "group_id" in kwargs:
+                basic_kwargs["group_id"] = kwargs["group_id"]
+            elif "user_id" in kwargs:
+                basic_kwargs["user_id"] = kwargs["user_id"]
+            # 尝试只使用基本参数发送
+            try:
+                return await message.send(**basic_kwargs)
+            except Exception as e2:
+                logger.debug(f"降级发送也失败: {e2}，尝试无参数发送")
+                # 最后尝试无参数发送
+                return await message.send()
+    
     try:
         # 渲染并发送消息
         async for message in renderer.render_messages(result):
-            msg_sent = await message.send()
+            msg_sent = await safe_send(message, **send_kwargs)
             
             # 保存消息ID与解析结果的关联
             if msg_sent:
@@ -121,7 +174,7 @@ async def _send_parse_result(result: ParseResult, cache_key: str) -> None:
                     logger.debug(f"获取消息ID失败: {e}")
     except Exception as e:
         logger.error(f"渲染失败: {e}")
-        await UniMessage(f"解析成功，但渲染失败: {e!s}").send()
+        await safe_send(UniMessage(f"解析成功，但渲染失败: {e!s}"), **send_kwargs)
     
     # 发送视频和音频（如果有）
     for media_type, media_item in result.media_contents:
@@ -137,28 +190,41 @@ async def _send_parse_result(result: ParseResult, cache_key: str) -> None:
             if media_type == VideoContent:
                 try:
                     # 直接发送视频
-                    await UniMessage(UniHelper.video_seg(path)).send()
+                    await safe_send(UniMessage(UniHelper.video_seg(path)), **send_kwargs)
                     # 发送视频文件
-                    await UniMessage(UniHelper.file_seg(path)).send()
+                    await safe_send(UniMessage(UniHelper.file_seg(path)), **send_kwargs)
                 except Exception as e:
                     # 直接发送失败，尝试使用群文件发送
                     logger.debug(f"直接发送视频失败，尝试使用群文件发送: {e}")
-                    await UniMessage(UniHelper.file_seg(path)).send()
+                    await safe_send(UniMessage(UniHelper.file_seg(path)), **send_kwargs)
             elif media_type == AudioContent:
                 try:
                     # 直接发送音频
-                    await UniMessage(UniHelper.record_seg(path)).send()
+                    await safe_send(UniMessage(UniHelper.record_seg(path)), **send_kwargs)
                     # 发送音频文件
-                    await UniMessage(UniHelper.file_seg(path)).send()
+                    await safe_send(UniMessage(UniHelper.file_seg(path)), **send_kwargs)
                 except Exception as e:
                     # 直接发送失败，尝试使用群文件发送
                     logger.debug(f"直接发送音频失败，尝试使用群文件发送: {e}")
-                    await UniMessage(UniHelper.file_seg(path)).send()
+                    await safe_send(UniMessage(UniHelper.file_seg(path)), **send_kwargs)
         except Exception as e:
             logger.error(f"发送媒体失败: {e}")
+
+
+def get_taptap_moment_url(moment_id: str) -> str:
+    """构建TapTap动态URL
+    
+    Args:
+        moment_id: 动态ID
+        
+    Returns:
+        完整的TapTap动态URL
+    """
+    return f"https://www.taptap.cn/moment/{moment_id}"
 
 
 # 导出函数
 __all__ = [
     "parse_url",
+    "get_taptap_moment_url"
 ]
