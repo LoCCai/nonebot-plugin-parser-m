@@ -1,5 +1,6 @@
 from re import Match
-from typing import ClassVar
+from typing import ClassVar, List, Dict, Any
+from datetime import datetime
 
 import aiotieba
 
@@ -23,7 +24,7 @@ class TiebaParser(BaseParser):
 
         async with aiotieba.Client() as client:
             # 获取帖子内容
-            posts = await client.get_posts(int(post_id), pn=1)
+            posts = await client.get_posts(int(post_id), pn=1, with_comments=True)
 
         # 提取主题帖信息
         thread = posts.thread
@@ -54,10 +55,82 @@ class TiebaParser(BaseParser):
                     self.create_graphics_content(image_url=image.origin_src)
                 )
 
+        # 处理评论
+        comments = []
+        if posts and posts.objs:
+            # 获取前10条评论（优先显示楼主的评论）
+            main_author_id = thread.user.user_id
+            main_comments = []
+            other_comments = []
+            
+            for post in posts.objs[1:]:  # 跳过主楼
+                if post.user.user_id == main_author_id:
+                    main_comments.append(post)
+                else:
+                    other_comments.append(post)
+            
+            # 合并评论，优先显示楼主的评论
+            combined_comments = main_comments[:5] + other_comments[:5]
+            
+            for post in combined_comments:
+                # 处理评论作者信息
+                comment_author = {
+                    "name": post.user.show_name,
+                    "avatar": f"https://gss0.baidu.com/7Ls0a8Sm2Q5IlBGlnYG/sys/portrait/item/{post.user.portrait}"
+                }
+                
+                # 处理评论内容
+                comment_content = post.text
+                
+                # 处理评论时间
+                formatted_time = ""
+                if post.timestamp:
+                    try:
+                        dt = datetime.fromtimestamp(post.timestamp)
+                        formatted_time = dt.strftime('%Y-%m-%d %H:%M')
+                    except:
+                        pass
+                
+                # 处理楼中楼评论
+                child_posts = []
+                if hasattr(post, 'comments') and post.comments:
+                    for comment in post.comments[:3]:  # 每个评论最多显示3条楼中楼
+                        child_author = {
+                            "name": comment.user.show_name,
+                            "avatar": f"https://gss0.baidu.com/7Ls0a8Sm2Q5IlBGlnYG/sys/portrait/item/{comment.user.portrait}"
+                        }
+                        
+                        child_content = comment.text
+                        
+                        child_formatted_time = ""
+                        if comment.timestamp:
+                            try:
+                                dt = datetime.fromtimestamp(comment.timestamp)
+                                child_formatted_time = dt.strftime('%Y-%m-%d %H:%M')
+                            except:
+                                pass
+                        
+                        child_posts.append({
+                            "author": child_author,
+                            "content": child_content,
+                            "formatted_time": child_formatted_time,
+                            "ups": comment.agree_count
+                        })
+                
+                comments.append({
+                    "author": comment_author,
+                    "content": comment_content,
+                    "formatted_time": formatted_time,
+                    "ups": post.agree_count,
+                    "comments": len(child_posts),
+                    "child_posts": child_posts
+                })
+
         extra = {
             "forum": {
                 "name": forum.fname,
-            }
+            },
+            "comments": comments
         }
 
         return self.result(
