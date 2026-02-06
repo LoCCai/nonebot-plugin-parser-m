@@ -23,7 +23,7 @@ class TiebaParser(BaseParser):
 
         async with aiotieba.Client() as client:
             # 获取帖子内容
-            posts = await client.get_posts(int(post_id), page=1)
+            posts = await client.get_posts(int(post_id), pn=1)
 
         # 提取主题帖信息
         thread = posts.thread
