@@ -10,8 +10,6 @@ from ..base import BaseParser, handle
 from ..data import Platform, Author, MediaContent, ImageContent, VideoContent
 from ...exception import ParseException
 from ...constants import PlatformEnum
-from ...browser_pool import browser_pool, safe_browser_context
-
 
 class TapTapParser(BaseParser):
     """TapTap 解析器"""
@@ -38,105 +36,73 @@ class TapTapParser(BaseParser):
         return value
     
     async def _fetch_nuxt_data(self, url: str) -> list:
-        """获取页面的 Nuxt 数据"""
-        max_retries = 3
-        retry_count = 0
-        
-        while retry_count <= max_retries:
-            try:
-                async with browser_pool.get_browser() as browser:
-                    async with safe_browser_context(browser) as (context, page):
-                        # 导航到 URL，增加等待时间确保页面完全加载
-                        await page.goto(url, wait_until="networkidle")  # 等待网络空闲，确保资源加载完成
-                        await page.wait_for_timeout(5000)  # 增加等待时间到5秒，确保页面完全渲染
-                        
-                        # 获取页面内容
-                        response_text = await page.content()
-                        
-                        # 调试：记录页面基本信息
-                        logger.debug(f"页面 URL: {url}")
-                        logger.debug(f"页面大小: {len(response_text)} 字节")
-                        
-                        # 尝试多种方式提取 Nuxt 数据
-                        nuxt_data: list = []  # 明确类型标注为列表
-                        
-                        # 方式1: 尝试原始的 __NUXT_DATA__ 提取
-                        if "__NUXT_DATA__" in response_text:
-                            # 尝试多种正则表达式匹配
-                            patterns = [
-                                r'<script id="__NUXT_DATA__"[^>]*>(.*?)</script>',
-                                r'<script[^>]*id=["\']__NUXT_DATA__["\'][^>]*>(.*?)</script>',
-                                r'<script[^>]*>(.*?__NUXT_DATA__.*?)</script>',
-                            ]
-                            
-                            for pattern in patterns:
-                                match = re.search(pattern, response_text, re.DOTALL)
-                                if match:
-                                    logger.debug(f"使用正则表达式匹配成功: {pattern[:50]}...")
-                                    try:
-                                        # 提取json数据部分
-                                        json_match = re.search(r'__NUXT_DATA__\s*=\s*(\[.*?\])', match.group(1), re.DOTALL)
-                                        if json_match:
-                                            parsed_data = json.loads(json_match.group(1))
-                                            if isinstance(parsed_data, list):
-                                                nuxt_data = parsed_data
-                                                break
-                                        # 尝试直接解析整个匹配内容
-                                        parsed_data = json.loads(match.group(1))
-                                        if isinstance(parsed_data, list):
-                                            nuxt_data = parsed_data
-                                            break
-                                    except json.JSONDecodeError as e:
-                                        logger.debug(f"解析 Nuxt 数据失败，尝试下一个正则表达式: {e}")
-                                        continue
-                        
-                        # 方式2: 如果找不到 __NUXT_DATA__，尝试从 window.__NUXT__ 中提取
-                        if not nuxt_data and "window.__NUXT__" in response_text:
-                            logger.debug("尝试从 window.__NUXT__ 中提取数据")
-                            match = re.search(r'window\.__NUXT__\s*=\s*(\[.*?\])', response_text, re.DOTALL)
-                            if match:
-                                try:
-                                    parsed_data = json.loads(match.group(1))
-                                    if isinstance(parsed_data, list):
-                                        nuxt_data = parsed_data
-                                except json.JSONDecodeError as e:
-                                    logger.debug(f"解析 window.__NUXT__ 失败: {e}")
-                        
-                        # 方式3: 尝试从 window.__NUXT_DATA__ 中提取
-                        if not nuxt_data and "window.__NUXT_DATA__" in response_text:
-                            logger.debug("尝试从 window.__NUXT_DATA__ 中提取数据")
-                            match = re.search(r'window\.__NUXT_DATA__\s*=\s*(\[.*?\])', response_text, re.DOTALL)
-                            if match:
-                                try:
-                                    parsed_data = json.loads(match.group(1))
-                                    if isinstance(parsed_data, list):
-                                        nuxt_data = parsed_data
-                                except json.JSONDecodeError as e:
-                                    logger.debug(f"解析 window.__NUXT_DATA__ 失败: {e}")
-                        
-                        # 如果仍然没有找到数据，抛出异常
-                        if not nuxt_data:
-                            # 保存页面内容到临时文件，便于调试
-                            temp_file = f"taptap_debug_{datetime.now().strftime('%Y%m%d_%H%M%S')}.html"
-                            with open(temp_file, "w", encoding="utf-8") as f:
-                                f.write(response_text)
-                            logger.debug(f"页面内容已保存到临时文件: {temp_file}")
-                            raise ParseException(f"无法找到 Nuxt 数据: {url}")
-                        
-                        # 确保返回的是列表
-                        return nuxt_data
-            
-            except Exception as e:
-                retry_count += 1
-                if retry_count > max_retries:
-                    logger.error(f"获取 Nuxt 数据失败，已重试 {max_retries} 次 | url: {url}, error: {e}")
-                    raise ParseException(f"获取 Nuxt 数据失败: {url}, error: {e}")
+        """获取页面的 Nuxt 数据 (纯 HTTP 请求版)"""
+        try:
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                response = await client.get(url, headers=self.headers, follow_redirects=True)
+                response.raise_for_status()
+                response_text = response.text
+
+                nuxt_data: list = []
                 
-                logger.warning(f"获取 Nuxt 数据失败，正在重试 ({retry_count}/{max_retries}) | url: {url}, error: {e}")
-                await asyncio.sleep(1 * retry_count)  # 指数退避
-        
-        # 这个代码路径理论上不会执行，因为循环中要么返回要么抛出异常
-        return []
+                # 方式1: 尝试原始的 __NUXT_DATA__ 提取
+                if "__NUXT_DATA__" in response_text:
+                    patterns = [
+                        r'<script id="__NUXT_DATA__"[^>]*>(.*?)</script>',
+                        r'<script[^>]*id=["\']__NUXT_DATA__["\'][^>]*>(.*?)</script>',
+                        r'<script[^>]*>(.*?__NUXT_DATA__.*?)</script>',
+                    ]
+                    
+                    for pattern in patterns:
+                        match = re.search(pattern, response_text, re.DOTALL)
+                        if match:
+                            try:
+                                # 提取json数据部分
+                                json_match = re.search(r'__NUXT_DATA__\s*=\s*(\[.*?\])', match.group(1), re.DOTALL)
+                                if json_match:
+                                    parsed_data = json.loads(json_match.group(1))
+                                    if isinstance(parsed_data, list):
+                                        nuxt_data = parsed_data
+                                        break
+                                # 尝试直接解析整个匹配内容
+                                parsed_data = json.loads(match.group(1))
+                                if isinstance(parsed_data, list):
+                                    nuxt_data = parsed_data
+                                    break
+                            except json.JSONDecodeError:
+                                continue
+                
+                # 方式2: 尝试从 window.__NUXT__ 中提取
+                if not nuxt_data and "window.__NUXT__" in response_text:
+                    match = re.search(r'window\.__NUXT__\s*=\s*(\[.*?\])', response_text, re.DOTALL)
+                    if match:
+                        try:
+                            parsed_data = json.loads(match.group(1))
+                            if isinstance(parsed_data, list):
+                                nuxt_data = parsed_data
+                        except json.JSONDecodeError:
+                            pass
+
+                # 方式3: 尝试从 window.__NUXT_DATA__ 中提取
+                if not nuxt_data and "window.__NUXT_DATA__" in response_text:
+                    match = re.search(r'window\.__NUXT_DATA__\s*=\s*(\[.*?\])', response_text, re.DOTALL)
+                    if match:
+                        try:
+                            parsed_data = json.loads(match.group(1))
+                            if isinstance(parsed_data, list):
+                                nuxt_data = parsed_data
+                        except json.JSONDecodeError:
+                            pass
+                
+                if not nuxt_data:
+                    logger.warning(f"[TapTap] 无法在 HTML 中找到 Nuxt 数据: {url}")
+                    return []
+                
+                return nuxt_data
+
+        except Exception as e:
+            logger.error(f"[TapTap] 获取页面 HTML 失败: {url}, error: {e}")
+            return []
     
     async def _fetch_api_data(self, post_id: str) -> Optional[Dict[str, Any]]:
         """从TapTap API获取动态详情"""
@@ -219,8 +185,6 @@ class TapTapParser(BaseParser):
             "extra": {}
         }
         
-        api_success = False
-        
         # ==========================================================
         # 1. 尝试使用API获取数据
         # ==========================================================
@@ -276,7 +240,7 @@ class TapTapParser(BaseParser):
             result["stats"]["views"] = stats_data.get("pv_total", 0)
             result["stats"]["plays"] = stats_data.get("play_total", 0)
             
-            # 视频检测 (Step 1: Get Video ID)
+            # 视频检测
             pin_video = topic.get("pin_video", {})
             video_id = pin_video.get("video_id")
             if video_id:
@@ -287,7 +251,7 @@ class TapTapParser(BaseParser):
                 if thumbnail:
                     result["video_cover"] = thumbnail.get("original_url", "")
                 
-                # Step 2: Try fetch video url directly via API
+                # Try fetch video url directly via API
                 play_info_url = f"https://www.taptap.cn/video/v1/play-info"
                 play_info_params = {"video_id": video_id}
                 
@@ -302,7 +266,7 @@ class TapTapParser(BaseParser):
                             result["videos"].append(real_url)
                             logger.success(f"[TapTap] 从play-info接口获取到视频链接: {real_url[:50]}...")
                 except Exception as e:
-                    logger.warning(f"[TapTap] 获取视频play-info失败，将尝试浏览器嗅探: {e}")
+                    logger.warning(f"[TapTap] 获取视频play-info失败: {e}")
             
             # 内容解析 (Text & Images)
             first_post = data.get("first_post", {})
@@ -323,38 +287,27 @@ class TapTapParser(BaseParser):
                     children = content_item.get("children", [])
                     for child in children:
                         if isinstance(child, dict):
-                            # 先检查type字段，确保表情和话题标签能被正确处理
                             child_type = child.get("type")
-                            # 处理表情
                             if child_type == "tap_emoji":
                                 img_info = child.get("info", {}).get("img", {})
                                 original_url = img_info.get("original_url")
                                 if original_url:
-                                    # 将表情转换为HTML img标签，与文字一起渲染
                                     paragraph_text.append(f'<img src="{original_url}" alt="表情" style="width: 20px; height: 20px; vertical-align: middle; margin: 0 2px; object-fit: contain;">')
-                            # 处理话题标签
                             elif child_type == "hashtag":
                                 tag_text = child.get("text", "")
                                 if tag_text:
                                     web_url = child.get("info", {}).get("web_url", "")
                                     if web_url:
-                                        # 移除URL中的空格
                                         web_url = web_url.strip()
-                                        # 将话题标签转换为HTML超链接
                                         paragraph_text.append(f'<a href="{web_url}" style="color: #3498db; text-decoration: none; background-color: #f0f8ff; padding: 2px 6px; border-radius: 4px; font-weight: 500; margin: 0 2px;">{tag_text}</a>')
                                     else:
-                                        # 如果没有URL，只显示标签文本
                                         paragraph_text.append(f'<span style="color: #3498db; background-color: #f0f8ff; padding: 2px 6px; border-radius: 4px; font-weight: 500; margin: 0 2px;">{tag_text}</span>')
-                            # 处理普通文本
                             elif "text" in child:
                                 paragraph_text.append(child["text"])
-                        # 处理字符串类型的child
                         elif isinstance(child, str):
                             paragraph_text.append(child)
-                    # 拼接当前段落内容，并添加换行符
                     if paragraph_text:
                         text_parts.append("".join(paragraph_text))
-                        # 添加换行符，区分不同段落
                         text_parts.append("\n")
 
                 elif item_type == "image":
@@ -363,27 +316,22 @@ class TapTapParser(BaseParser):
                     if original_url:
                         result["images"].append(original_url)
             
-
-            # 合并文本部分，直接使用\n作为换行符
             if text_parts:
                 result["text"] = ("".join(text_parts)).replace("<br>", "\n").replace("<br />", "\n")
             
-            api_success = True
-            logger.debug(f"API解析结果: videos={len(result['videos'])}, images={len(result['images'])}, content_items={len(result['content_items'])}, text={result['text']}")
+            logger.debug(f"API解析结果: videos={len(result['videos'])}, images={len(result['images'])}, content_items={len(result['content_items'])}, text={result.get('text', '')[:30]}...")
         else:
-            logger.error(f"[TapTap] API获取数据失败，准备使用浏览器解析")
-            api_success = False
+            # 如果API失败，抛出异常，不再使用浏览器兜底
+            raise ParseException(f"TapTap API 请求失败: {post_id}")
 
         # ==========================================================
-        # 2. 获取评论数据 (独立逻辑)
+        # 2. 获取评论数据
         # ==========================================================
         comments = await self._fetch_comments(post_id)
         if comments:
-            logger.debug(f"评论：{comments}")
-            # 处理评论数据，提取纯文本内容
+            logger.debug(f"获取到 {len(comments)} 条评论")
             processed_comments = []
             for comment in comments[:10]:  # 只保留前10条评论
-                # 获取评论时间
                 created_time = comment.get("created_time") or comment.get("updated_time")
                 formatted_time = ""
                 if created_time:
@@ -393,15 +341,12 @@ class TapTapParser(BaseParser):
                     except (ValueError, TypeError):
                         formatted_time = ""
                 
-                # 处理作者徽章，转换为HTML标签
                 author = comment.get("author", {})
                 badges = author.get("badges", [])
                 
-                # 创建处理后的徽章HTML
                 processed_badges = []
                 for badge in badges:
                     if badge.get("title"):
-                        # 如果有徽章图片，显示图片+文字，否则只显示文字
                         if badge.get("icon", {}).get("small"):
                             badge_icon = badge["icon"]["small"]
                             processed_badges.append(f'<img src="{badge_icon}" alt="{badge["title"]}" title="{badge["title"]}" style="width: 16px; height: 16px; vertical-align: middle; margin: 0 2px; object-fit: contain;">')
@@ -414,7 +359,7 @@ class TapTapParser(BaseParser):
                         "name": author.get("name", ""),
                         "avatar": author.get("avatar", ""),
                         "badges": badges,
-                        "processed_badges": "".join(processed_badges)  # 添加处理后的徽章HTML
+                        "processed_badges": "".join(processed_badges)
                     },
                     "content": "",
                     "created_time": created_time,
@@ -424,7 +369,6 @@ class TapTapParser(BaseParser):
                     "child_posts": []
                 }
                 
-                # 提取评论内容
                 if comment.get("contents", {}).get("json"):
                     content_json = comment["contents"]["json"]
                     for item in content_json:
@@ -439,17 +383,15 @@ class TapTapParser(BaseParser):
                                     if original_url:
                                         tap_emoji_text = child.get("children", [])[0]['text']
                                         processed_comment["content"] += f'<img src="{original_url}" alt="表情" class="comment-badge" title="{tap_emoji_text}" style="width: 20px; height: 20px; vertical-align: middle; margin: 0 2px; object-fit: contain;">'
-                        # 处理评论中的图片
                         elif item_type == "image":
                             image_info = item.get("info", {}).get("image", {})
                             original_url = image_info.get("original_url")
                             if original_url:
-                                # 将图片转换为HTML img标签，添加到评论内容中
                                 processed_comment["content"] += f'<div class="comment-image" style="margin: 10px 0;"><img src="{original_url}" alt="评论图片" style="max-width: 100%; height: auto; border-radius: 8px;"></div>'
+                
                 # 处理回复
                 if 'child_posts' in comment:
-                    for reply in comment['child_posts'][:5]:  # 只保留前5条回复
-                        # 获取回复时间
+                    for reply in comment['child_posts'][:5]:
                         reply_created_time = reply.get("created_time") or reply.get("updated_time")
                         reply_formatted_time = ""
                         if reply_created_time:
@@ -459,15 +401,12 @@ class TapTapParser(BaseParser):
                             except (ValueError, TypeError):
                                 reply_formatted_time = ""
                         
-                        # 处理回复者徽章，转换为HTML标签
                         reply_author = reply.get("author", {})
                         reply_badges = reply_author.get("badges", [])
                         
-                        # 创建处理后的徽章HTML
                         processed_reply_badges = []
                         for badge in reply_badges:
                             if badge.get("title"):
-                                # 如果有徽章图片，显示图片+文字，否则只显示文字
                                 if badge.get("icon", {}).get("small"):
                                     badge_icon = badge["icon"]["small"]
                                     processed_reply_badges.append(f'<img src="{badge_icon}" alt="{badge["title"]}" title="{badge["title"]}" style="width: 16px; height: 16px; vertical-align: middle; margin: 0 2px; object-fit: contain;">')
@@ -480,7 +419,7 @@ class TapTapParser(BaseParser):
                                 "name": reply_author.get("name", ""),
                                 "avatar": reply_author.get("avatar", ""),
                                 "badges": reply_badges,
-                                "processed_badges": "".join(processed_reply_badges)  # 添加处理后的徽章HTML
+                                "processed_badges": "".join(processed_reply_badges)
                             },
                             "content": "",
                             "created_time": reply_created_time,
@@ -488,7 +427,6 @@ class TapTapParser(BaseParser):
                             "ups": reply.get("ups", 0)
                         }
                         
-                        # 提取回复内容
                         if reply.get("contents", {}).get("json"):
                             reply_json = reply["contents"]["json"]
                             for item in reply_json:
@@ -503,12 +441,10 @@ class TapTapParser(BaseParser):
                                             if original_url:
                                                 tap_emoji_text = child.get("children", [])[0]['text']
                                                 processed_reply["content"] += f'<img src="{original_url}" alt="表情" class="comment-badge" title="{tap_emoji_text}" style="width: 20px; height: 20px; vertical-align: middle; margin: 0 2px; object-fit: contain;">'
-                                # 处理回复中的图片
                                 elif item_type == "image":
                                     image_info = item.get("info", {}).get("image", {})
                                     original_url = image_info.get("original_url")
                                     if original_url:
-                                        # 将图片转换为HTML img标签，添加到回复内容中
                                         processed_reply["content"] += f'<div class="comment-image" style="margin: 10px 0;"><img src="{original_url}" alt="回复图片" style="max-width: 100%; height: auto; border-radius: 8px;"></div>'
                         
                         processed_comment["child_posts"].append(processed_reply)
@@ -516,322 +452,13 @@ class TapTapParser(BaseParser):
                 processed_comments.append(processed_comment)
             
             result['comments'] = processed_comments
-            logger.debug(f"[TapTap] 获取到 {len(processed_comments)} 条热门评论")
-        else:
-            logger.error(f"[TapTap] 获取评论数据失败")
 
-        # ==========================================================
-        # 3. 判断是否需要浏览器处理
-        # 条件：
-        # A. API 完全失败 (api_success 为 False)
-        # B. 有视频ID，但是没有获取到播放链接 (需要去嗅探)
-        # ==========================================================
-        has_video_id = bool(result.get("video_id"))
-        has_video_url = len(result["videos"]) > 0
-        
-        need_browser = (not api_success) or (has_video_id and not has_video_url)
-
-        if need_browser:
-            logger.info(f"[TapTap] 启动浏览器处理 (API成功: {api_success}, 缺视频: {has_video_id and not has_video_url})")
-            
-            # 使用 set 自动去重完全相同的 URL
-            captured_videos: Set[str] = set()
-            
-            async with browser_pool.get_browser() as browser:
-                context = None
-                try:
-                    # 创建隐身页面
-                    context = await browser.new_context(
-                        user_agent=self.headers["User-Agent"],
-                        viewport={"width": 1920, "height": 1080},
-                        device_scale_factor=1,
-                        is_mobile=False,
-                        has_touch=False,
-                        locale="zh-CN",
-                        timezone_id="Asia/Shanghai"
-                    )
-                    
-                    # 注入防检测脚本
-                    await context.add_init_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined});")
-                    await context.add_init_script("Object.defineProperty(navigator, 'plugins', {get: () => [1, 2, 3, 4, 5]});")
-                    
-                    page = await context.new_page()
-                    page.set_default_timeout(40000)
-                    
-                    # --- 定义监听器 ---
-                    async def handle_response(response):
-                        try:
-                            resp_url = response.url
-                            
-                            # 1. 捕获 .m3u8 (含签名)
-                            if '.m3u8' in resp_url and 'sign=' in resp_url:
-                                # 简单的过滤：排除掉非 TapTap 域名的（比如广告）
-                                if 'taptap.cn' in resp_url:
-                                    logger.debug(f"[TapTap] 嗅探到 M3U8: {resp_url[:50]}...")
-                                    captured_videos.add(resp_url)
-                            
-                            # 2. 捕获 play-info 接口
-                            if 'video/v1/play-info' in resp_url and response.status == 200:
-                                try:
-                                    json_data = await response.json()
-                                    if json_data.get('data') and json_data['data'].get('url'):
-                                        real_url = json_data['data']['url']
-                                        captured_videos.add(real_url)
-                                except:
-                                    pass
-                        except Exception:
-                            pass
-                    
-                    page.on("response", handle_response)
-                    
-                    # --- 访问页面 ---
-                    logger.info(f"[TapTap] 正在访问详情页(开启嗅探): {url}")
-                    await page.goto(url, wait_until="domcontentloaded")
-                    
-                    # --- 获取 Nuxt 数据 (仅当 API 失败时，才进行完整的 Nuxt 解析来填补内容) ---
-                    if not api_success:
-                        logger.info("[TapTap] API失败，执行完整 Nuxt 数据提取兜底")
-                        data = []
-                        try:
-                            await page.wait_for_selector('#__NUXT_DATA__', timeout=25000, state='attached')
-                            json_str = await page.evaluate('document.getElementById("__NUXT_DATA__").textContent')
-                            if json_str:
-                                data = json.loads(json_str)
-                        except Exception as e:
-                            logger.error(f"[TapTap] 提取 Nuxt 数据异常: {e}")
-                        
-                        # 补全标题、文本内容、作者信息和发布时间 (完整保留原逻辑)
-                        if data:
-                            # 提取所有可能的文本内容
-                            all_text_parts = []
-                            
-                            for item in data:
-                                if not isinstance(item, dict):
-                                    continue
-                                    
-                                # 处理包含 user 字段的对象，提取作者信息
-                                if 'user' in item:
-                                    user_ref = item['user']
-                                    user_obj = self._resolve_nuxt_value(data, user_ref)
-                                    if isinstance(user_obj, dict):
-                                        # 提取作者名称
-                                        result['author']['name'] = self._resolve_nuxt_value(data, user_obj.get('name', '')) or ''
-                                        # 提取作者头像
-                                        if 'avatar' in user_obj:
-                                            avatar = self._resolve_nuxt_value(data, user_obj['avatar'])
-                                            if isinstance(avatar, str) and avatar.startswith('http'):
-                                                result['author']['avatar'] = avatar
-                                            elif isinstance(avatar, dict) and 'original_url' in avatar:
-                                                result['author']['avatar'] = self._resolve_nuxt_value(data, avatar['original_url']) or ''
-                                
-                                # 处理包含 title 和 summary 字段的对象，提取标题和完整摘要
-                                if 'title' in item and 'summary' in item:
-                                    title = self._resolve_nuxt_value(data, item['title'])
-                                    summary = self._resolve_nuxt_value(data, item['summary'])
-                                    if title and isinstance(title, str):
-                                        result['title'] = title
-                                    if summary and isinstance(summary, str):
-                                        # 将摘要添加到所有文本部分
-                                        all_text_parts.append(summary)
-                                
-                                # 处理包含 stat 字段的对象，提取统计信息
-                                if 'stat' in item:
-                                    stat_ref = item['stat']
-                                    stat_obj = self._resolve_nuxt_value(data, stat_ref)
-                                    if isinstance(stat_obj, dict):
-                                        result['stats']['likes'] = stat_obj.get('supports', 0) or stat_obj.get('likes', 0)
-                                        result['stats']['comments'] = stat_obj.get('comments', 0)
-                                        result['stats']['shares'] = stat_obj.get('shares', 0)
-                                        result['stats']['views'] = stat_obj.get('pv_total', 0)
-                                        result['stats']['plays'] = stat_obj.get('play_total', 0)
-                                
-                                # 直接处理包含统计数据的对象
-                                if 'supports' in item or 'likes' in item:
-                                    result['stats']['likes'] = item.get('supports', 0) or item.get('likes', 0)
-                                    result['stats']['comments'] = item.get('comments', 0)
-                                    result['stats']['shares'] = item.get('shares', 0)
-                                    result['stats']['views'] = item.get('pv_total', 0)
-                                    result['stats']['plays'] = item.get('play_total', 0)
-                                
-                                # 处理包含 contents 字段的对象，提取额外文本内容
-                                if 'contents' in item:
-                                    contents = self._resolve_nuxt_value(data, item['contents'])
-                                    if isinstance(contents, list):
-                                        for content_item in contents:
-                                            if isinstance(content_item, dict):
-                                                # 处理文本内容
-                                                if 'text' in content_item:
-                                                    text = self._resolve_nuxt_value(data, content_item['text'])
-                                                    if text and isinstance(text, str):
-                                                        all_text_parts.append(text)
-                                                # 处理段落内容
-                                                elif content_item.get('type') == 'paragraph':
-                                                    children = content_item.get('children')
-                                                    if isinstance(children, list):
-                                                        for child in children:
-                                                            if isinstance(child, dict) and 'text' in child:
-                                                                child_text = self._resolve_nuxt_value(data, child['text'])
-                                                                if child_text and isinstance(child_text, str):
-                                                                    all_text_parts.append(child_text)
-                                                # 处理带有text引用的内容项
-                                                elif 'text' in self._resolve_nuxt_value(data, content_item):
-                                                    text = self._resolve_nuxt_value(data, content_item['text'])
-                                                    if text and isinstance(text, str):
-                                                        all_text_parts.append(text)
-                                
-                                # 处理包含 description 字段的对象，可能包含文本内容
-                                if 'description' in item:
-                                    description = self._resolve_nuxt_value(data, item['description'])
-                                    if description and isinstance(description, str):
-                                        all_text_parts.append(description)
-                                
-                                # 处理包含 content 字段的对象，可能包含文本内容
-                                if 'content' in item:
-                                    content = self._resolve_nuxt_value(data, item['content'])
-                                    if content and isinstance(content, str):
-                                        all_text_parts.append(content)
-                                
-                                # 处理包含 body 字段的对象，可能包含文本内容
-                                if 'body' in item:
-                                    body = self._resolve_nuxt_value(data, item['body'])
-                                    if body and isinstance(body, str):
-                                        all_text_parts.append(body)
-                                
-                                # 提取发布时间
-                                if 'created_at' in item or 'publish_time' in item:
-                                    publish_time = self._resolve_nuxt_value(data, item.get('created_at') or item.get('publish_time'))
-                                    if publish_time:
-                                        result['publish_time'] = publish_time
-                                
-                                # 提取视频信息 (API失败时从Nuxt补全)
-                                if 'pin_video' in item:
-                                    video_info = self._resolve_nuxt_value(data, item['pin_video'])
-                                    if isinstance(video_info, dict):
-                                        if 'duration' in video_info:
-                                            result['video_duration'] = self._resolve_nuxt_value(data, video_info['duration'])
-                                        if 'video_id' in video_info:
-                                            result['video_id'] = self._resolve_nuxt_value(data, video_info['video_id'])
-                                
-                                # 提取作者等级和标签
-                                if 'honor_title' in item:
-                                    result['author']['honor_title'] = self._resolve_nuxt_value(data, item['honor_title']) or ''
-                                if 'honor_obj_id' in item:
-                                    result['author']['honor_obj_id'] = self._resolve_nuxt_value(data, item['honor_obj_id']) or ''
-                                if 'honor_obj_type' in item:
-                                    result['author']['honor_obj_type'] = self._resolve_nuxt_value(data, item['honor_obj_type']) or ''
-                            
-                            # 合并所有文本部分，去重并保留顺序
-                            seen_text = set()
-                            unique_text_parts = []
-                            for text in all_text_parts:
-                                if text not in seen_text:
-                                    seen_text.add(text)
-                                    unique_text_parts.append(text)
-                            
-                            # 构建完整的摘要
-                            if unique_text_parts:
-                                result['summary'] = '\n'.join(unique_text_parts)
-                            
-                            if not result['title']:
-                                result['title'] = "TapTap 动态分享"
-                            
-                            # 图片处理 (API失败时从Nuxt补全)
-                            images = []
-                            img_blacklist = ['appicon', 'avatars', 'logo', 'badge', 'emojis', 'market']
-                            
-                            for item in data:
-                                if not isinstance(item, dict):
-                                    continue
-                                
-                                if 'original_url' in item:
-                                    img_url = self._resolve_nuxt_value(data, item['original_url'])
-                                    if img_url and isinstance(img_url, str) and img_url.startswith('http'):
-                                        lower_url = img_url.lower()
-                                        if not any(k in lower_url for k in img_blacklist):
-                                            if img_url not in images:
-                                                images.append(img_url)
-                                
-                                # 尝试从 Nuxt 数据中找 MP4 直链 (并加入嗅探集合)
-                                if 'video_url' in item or 'url' in item:
-                                    u = self._resolve_nuxt_value(data, item.get('video_url') or item.get('url'))
-                                    if isinstance(u, str) and ('.mp4' in u) and u.startswith('http'):
-                                        captured_videos.add(u)
-                            
-                            result["images"] = images
-
-                    # 额外等待，确保视频请求发出
-                    try:
-                        await page.evaluate("window.scrollTo(0, 200)")
-                        await asyncio.sleep(3)
-                    except:
-                        pass
-                    
-                    # === 视频去重和智能选择逻辑 (适用于所有浏览器模式) ===
-                    unique_videos = []
-                    
-                    # 将捕获的视频链接转换为列表，并优先处理主M3U8
-                    video_list = list(captured_videos)
-                    
-                    # 首先，提取所有视频ID并分类
-                    video_dict = {}  # video_id -> [urls]
-                    for v_url in video_list:
-                        # 尝试提取 TapTap 视频 ID
-                        match = re.search(r'/hls/([a-zA-Z0-9\-_]+)', v_url)
-                        
-                        if match:
-                            vid_id = match.group(1)
-                            if vid_id not in video_dict:
-                                video_dict[vid_id] = []
-                            video_dict[vid_id].append(v_url)
-                        else:
-                            # 如果没有匹配到ID (可能是 MP4 直链或其他 CDN 格式)，则单独处理
-                            if v_url not in unique_videos and v_url not in result["videos"]:
-                                unique_videos.append(v_url)
-                    
-                    # 对于每个视频ID，优先选择最高分辨率的M3U8
-                    for vid_id, urls in video_dict.items():
-                        if len(urls) == 1:
-                            unique_videos.append(urls[0])
-                        else:
-                            # 多个URL，优先选择最高分辨率
-                            # 清晰度优先级：2208 1080P > 2206 720P > 2204 540P > 2202 360P
-                            quality_priority = ['2208', '2206', '2204', '2202']
-                            
-                            # 按清晰度优先级排序
-                            def get_quality_priority(url):
-                                for i, quality in enumerate(quality_priority):
-                                    if f'/{quality}.m3u8' in url:
-                                        return i
-                                return len(quality_priority)  # 默认优先级最低
-                            
-                            urls.sort(key=get_quality_priority)
-                            # 选择优先级最高的URL
-                            highest_priority_url = urls[0]
-                            unique_videos.append(highest_priority_url)
-                            logger.debug(f"[TapTap] 视频 {vid_id} 选择最高分辨率: {highest_priority_url}")
-                    
-                    # 合并嗅探到的视频到结果中 (去重)
-                    for v in unique_videos:
-                        if v not in result["videos"]:
-                            result["videos"].append(v)
-                    
-                    if result["videos"]:
-                        logger.success(f"[TapTap] 最终捕获视频数: {len(result['videos'])}")
-                    else:
-                        logger.warning("[TapTap] 未检测到视频链接")
-                
-                except Exception as e:
-                    logger.error(f"[TapTap] 详情页抓取流程失败: {e}")
-                finally:
-                    if context:
-                        await context.close()
-
-        logger.debug(f"解析结果: videos={len(result['videos'])}, images={len(result['images'])}, comments={len(result['comments'])}")
         return result
     
     async def _parse_user_latest_post(self, user_id: str) -> Optional[Dict[str, Any]]:
         """获取用户最新动态"""
         url = f"{self.base_url}/user/{user_id}"
+        # 这里使用改造后的 _fetch_nuxt_data (纯HTTP)
         data = await self._fetch_nuxt_data(url)
         
         candidates = []
