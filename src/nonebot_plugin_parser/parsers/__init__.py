@@ -8,6 +8,7 @@ from .twitter import TwitterParser as TwitterParser
 from .bilibili import BilibiliParser as BilibiliParser
 from .kuaishou import KuaiShouParser as KuaiShouParser
 from .kugou import KuGouParser as KuGouParser
+from .tieba import TiebaParser as TiebaParser
 from .netease import NCMParser as NCMParser
 from ..download import YTDLP_DOWNLOADER
 from .xiaohongshu import XiaoHongShuParser as XiaoHongShuParser
@@ -57,4 +58,5 @@ __all__ = [
     "TapTapParser",
     "QSMusicParser",
     "ToutiaoParser",
+    "TiebaParser",
 ]
