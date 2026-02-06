@@ -84,9 +84,9 @@ class TiebaParser(BaseParser):
                 
                 # 处理评论时间
                 formatted_time = ""
-                if post.timestamp:
+                if hasattr(post, 'create_time') and post.create_time:
                     try:
-                        dt = datetime.fromtimestamp(post.timestamp)
+                        dt = datetime.fromtimestamp(post.create_time)
                         formatted_time = dt.strftime('%Y-%m-%d %H:%M')
                     except:
                         pass
@@ -103,9 +103,9 @@ class TiebaParser(BaseParser):
                         child_content = comment.text
                         
                         child_formatted_time = ""
-                        if comment.timestamp:
+                        if hasattr(comment, 'create_time') and comment.create_time:
                             try:
-                                dt = datetime.fromtimestamp(comment.timestamp)
+                                dt = datetime.fromtimestamp(comment.create_time)
                                 child_formatted_time = dt.strftime('%Y-%m-%d %H:%M')
                             except:
                                 pass
@@ -114,14 +114,14 @@ class TiebaParser(BaseParser):
                             "author": child_author,
                             "content": child_content,
                             "formatted_time": child_formatted_time,
-                            "ups": comment.agree_count
+                            "ups": comment.agree
                         })
                 
                 comments.append({
                     "author": comment_author,
                     "content": comment_content,
                     "formatted_time": formatted_time,
-                    "ups": post.agree_count,
+                    "ups": post.agree,
                     "comments": len(child_posts),
                     "child_posts": child_posts
                 })
