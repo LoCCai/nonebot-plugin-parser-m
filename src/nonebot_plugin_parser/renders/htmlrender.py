@@ -42,7 +42,7 @@ class HtmlRenderer(ImageRenderer):
         return await template_to_pic(
             template_path=str(self.templates_dir),
             template_name=template_name,
-            screenshot_timeout=60000,
+            screenshot_timeout=120000,  # 增加超时时间到 120 秒
             templates={
                 "result": template_data,
                 "rendering_time": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
@@ -51,6 +51,7 @@ class HtmlRenderer(ImageRenderer):
             pages={
                 "viewport": {"width": 800, "height": 100},
                 "base_url": f"file://{self.templates_dir}",
+                "wait_until": "domcontentloaded",  # 减少等待时间，使用 domcontentloaded 而非 networkidle
             },
         )
 

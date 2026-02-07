@@ -227,13 +227,40 @@ class ImageRenderer(BaseRenderer):
         Args:
             result (ParseResult): 解析结果
         """
-        image_seg = await self.cache_or_render_image(result)
+        image_path = None
+        # 尝试获取图片路径，以便在直接发送失败时使用文件发送
+        try:
+            # 复用 cache_or_render_image 方法获取图片段，同时确保图片已保存
+            image_seg = await self.cache_or_render_image(result)
+            # 获取图片路径
+            image_path = result.render_image
+        except Exception as e:
+            logger.error(f"获取图片路径失败: {e}")
+            image_seg = None
 
-        msg = UniMessage(image_seg)
-        if self.append_url:
-            urls = (result.display_url, result.repost_display_url)
-            msg += "\n".join(url for url in urls if url)
-        yield msg
+        # 尝试直接发送图片
+        try:
+            msg = UniMessage(image_seg) if image_seg else UniMessage("图片渲染失败")
+            if self.append_url:
+                urls = (result.display_url, result.repost_display_url)
+                msg += "\n".join(url for url in urls if url)
+            yield msg
+        except Exception as e:
+            # 直接发送失败，可能是因为文件太大，尝试使用群文件发送
+            logger.debug(f"直接发送图片失败，尝试使用群文件发送: {e}")
+            if image_path:
+                try:
+                    msg = UniMessage(f"解析成功，但图片发送失败，尝试使用文件发送\n")
+                    if self.append_url:
+                        urls = (result.display_url, result.repost_display_url)
+                        msg += "\n".join(url for url in urls if url)
+                    yield msg
+                    await UniMessage(UniHelper.file_seg(image_path)).send()
+                except Exception as file_e:
+                    logger.error(f"使用群文件发送图片失败: {file_e}")
+                    yield UniMessage(f"解析成功，但图片发送失败: {file_e!s}")
+            else:
+                yield UniMessage(f"解析成功，但图片渲染失败: {e!s}")
 
         # 媒体内容
         async for message in self.render_contents(result):
