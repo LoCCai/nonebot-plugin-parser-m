@@ -1,12 +1,12 @@
 import json
 import asyncio
 from re import Match
-from typing import ClassVar, List, Dict, Any, Optional
+from typing import Any, Dict, List, ClassVar, Optional
 from collections.abc import AsyncGenerator
 
+import httpx
 from msgspec import convert
 from nonebot import logger
-import httpx
 from bilibili_api import HEADERS, Credential, select_client, request_settings
 from bilibili_api.opus import Opus
 from bilibili_api.video import Video
@@ -98,19 +98,19 @@ class BilibiliParser(BaseParser):
         """解析专栏信息"""
         read_id = int(searched.group("read_id"))
         return await self.parse_read(read_id)
-    
+
     XOR_CODE = 23442827791579
     MASK_CODE = 2251799813685247
     MAX_AID = 1 << 51
     ALPHABET = "FcwAPNKTMug3GV5Lj7EJnHpWsx4tb8haYeviqBz6rkCy12mUSDQX9RdoZf"
     ENCODE_MAP = (8, 7, 0, 5, 1, 3, 2, 4, 6)
     DECODE_MAP = tuple(reversed(ENCODE_MAP))
-    
+
     BASE = len(ALPHABET)
     PREFIX = "BV1"
     PREFIX_LEN = len(PREFIX)
     CODE_LEN = len(ENCODE_MAP)
-    
+
     @classmethod
     def av2bv(cls, aid: int) -> str:
         """将AV号转换为BV号"""
@@ -120,19 +120,19 @@ class BilibiliParser(BaseParser):
             bvid[cls.ENCODE_MAP[i]] = cls.ALPHABET[tmp % cls.BASE]
             tmp //= cls.BASE
         return cls.PREFIX + "".join(bvid)
-    
+
     @classmethod
     def bv2av(cls, bvid: str) -> int:
         """将BV号转换为AV号"""
         assert bvid[:cls.PREFIX_LEN] == cls.PREFIX
-        
+
         bvid = bvid[cls.PREFIX_LEN:]
         tmp = 0
         for i in range(cls.CODE_LEN):
             idx = cls.ALPHABET.index(bvid[cls.DECODE_MAP[i]])
             tmp = tmp * cls.BASE + idx
         return (tmp & cls.MASK_CODE) ^ cls.XOR_CODE
-    
+
     async def parse_video(
         self,
         *,
@@ -214,7 +214,7 @@ class BilibiliParser(BaseParser):
         # 使用BV-AV转换算法将BV号转换为AV号
         bvid = video_info.bvid
         try:
-            if bvid.startswith('BV'):
+            if bvid.startswith("BV"):
                 # 使用类中已封装的bv2av方法进行转换
                 video_oid = self.bv2av(bvid)
                 logger.debug(f"[BiliParser] BV号 {bvid} 转换为AV号 {video_oid}")
@@ -224,9 +224,9 @@ class BilibiliParser(BaseParser):
         except Exception as e:
             logger.error(f"[BiliParser] BV-AV转换失败: {e}")
             # 转换失败时使用BV号的数值形式作为oid
-            video_oid = int(bvid.replace('BV', ''), 36)
+            video_oid = int(bvid.replace("BV", ""), 36)
             logger.debug(f"[BiliParser] 使用备用方法获取oid: {video_oid}")
-        
+
         # 获取评论数据 - _fetch_comments方法已经处理好所有数据
         comments = await self._fetch_comments(video_oid, 1)  # type=1 表示视频
         processed_comments = comments if comments else []
@@ -430,18 +430,18 @@ class BilibiliParser(BaseParser):
 
         # 构建动态URL，用于二维码生成（使用t.bilibili.com格式）
         dynamic_url = f"https://t.bilibili.com/{dynamic_id}"
-        
+
         # 获取评论数据 - _fetch_comments方法已经处理好所有数据
         comments = None
         # 尝试从原始动态数据中获取评论参数
         basic_info = dynamic_info_data.get("item", {}).get("basic", {})
         comment_id_str = basic_info.get("comment_id_str")
         comment_type = basic_info.get("comment_type")
-        
+
         # 检查major_info，判断动态类型
         major_info = dynamic_info.modules.major_info if hasattr(dynamic_info.modules, "major_info") else {}
         major_type = major_info.get("type") if isinstance(major_info, dict) else None
-        
+
         # 根据动态类型选择正确的评论参数
         if comment_id_str and comment_type:
             # 使用动态数据中提供的comment_id_str和comment_type
@@ -469,13 +469,13 @@ class BilibiliParser(BaseParser):
             # 默认情况，使用动态id作为oid，type=17
             comments = await self._fetch_comments(dynamic_id, 17)  # type=17 表示动态（纯文字动态&分享）
             logger.debug(f"[BiliParser] 使用默认评论参数: oid={dynamic_id}, type=17")
-        
+
         if comments:
             extra_data["comments"] = comments
             logger.debug(f"[BiliParser] 成功获取 {len(comments)} 条动态评论")
         else:
-            logger.debug(f"[BiliParser] 未获取到动态评论")
-        
+            logger.debug("[BiliParser] 未获取到动态评论")
+
         return self.result(
             url=dynamic_url,
             title=dynamic_title,
@@ -642,7 +642,7 @@ class BilibiliParser(BaseParser):
         # 构建图文动态URL，用于二维码生成
         opus_id = getattr(bili_opus, "_opus_id", None) or getattr(bili_opus, "id", None)
         opus_url = f"https://www.bilibili.com/opus/{opus_id}" if opus_id else None
-        
+
         # 获取评论数据 - _fetch_comments方法已经处理好所有数据
         comments = None
         # 获取opus原始数据，用于提取评论参数
@@ -660,9 +660,9 @@ class BilibiliParser(BaseParser):
         basic_info = basic_info if isinstance(basic_info, dict) else {}
         comment_id_str = basic_info.get("comment_id_str")
         comment_type = basic_info.get("comment_type")
-        
+
         content_id = str(opus_data.item.id_str)
-        
+
         # 根据opus类型选择正确的评论参数
         if comment_id_str and comment_type:
             # 使用opus数据中提供的comment_id_str和comment_type
@@ -672,13 +672,13 @@ class BilibiliParser(BaseParser):
             # 默认为图文动态，使用content_id作为oid，type=12
             comments = await self._fetch_comments(int(content_id), 12)  # type=12 表示专栏/图文
             logger.debug(f"[BiliParser] 使用content_id作为opus评论参数: oid={content_id}, type=12")
-        
+
         if comments:
             extra_data["comments"] = comments
             logger.debug(f"[BiliParser] 成功获取 {len(comments)} 条专栏/图文评论")
         else:
-            logger.debug(f"[BiliParser] 未获取到专栏/图文评论")
-        
+            logger.debug("[BiliParser] 未获取到专栏/图文评论")
+
         return self.result(
             url=opus_url,
             title=final_title,
@@ -886,7 +886,7 @@ class BilibiliParser(BaseParser):
             logger.info(f"`parser_bili_ck` 已过期, 尝试从 {self._cookies_file} 加载")
             self._load_credential()
 
-    async def _fetch_comments(self, oid: int, type: int) -> Optional[List[Dict[str, Any]]]:
+    async def _fetch_comments(self, oid: int, type: int) -> list[dict[str, Any]] | None:
         """从Bilibili API获取评论数据
         
         Args:
@@ -910,7 +910,7 @@ class BilibiliParser(BaseParser):
             "ps": 10,  # 每页10条热评
             "pn": 1,   # 第1页
         }
-        
+
         try:
             # 创建包含基本headers的请求头
             request_headers = self.headers.copy()
@@ -921,26 +921,34 @@ class BilibiliParser(BaseParser):
                     request_headers.update({
                         "Cookie": "; ".join([f"{k}={v}" for k, v in cookies.items()])
                     })
-            
+
             async with httpx.AsyncClient(timeout=10.0) as client:
                 logger.debug(f"[Bilibili] 调用热评API: {api_url}, 参数: {params}")
                 response = await client.get(api_url, params=params, headers=request_headers)
                 response.raise_for_status()
                 data = response.json()
-                
+
                 logger.debug(f"[Bilibili] 热评API返回: {data}")
-                
+
                 if data.get("code") == 0 and data.get("data"):
                     replies = data["data"].get("replies", [])
                     logger.debug(f"[Bilibili] 获得热评: {len(replies)}条")
-                    
+
                     # 处理评论数据，直接封装为前端可直接使用的格式
                     processed_comments = []
                     for comment in replies[:10]:
-                        # 处理评论内容，包括图片
+                        # 处理评论内容，包括图片和表情
                         content = comment.get("content", {})
                         message = content.get("message", "")
-                        
+                        emote = content.get("emote", {})
+
+                        # 处理评论中的表情
+                        for e in emote.values():
+                            if e["type"] == 4:  # 颜文字
+                                continue
+                            size = "small" if e["meta"]["size"] == 1 else "medium"
+                            message = message.replace(e["text"], f'<img class="sticker {size}" src="{e["url"]}">')
+
                         # 处理评论中的图片
                         processed_content = message
                         if content.get("pictures"):
@@ -948,31 +956,39 @@ class BilibiliParser(BaseParser):
                                 img_src = picture.get("img_src", "")
                                 if img_src:
                                     processed_content += f'<img src="{img_src}" style="max-width: 100%; height: auto; border-radius: 8px; margin: 5px 0;">'  # 直接生成HTML
-                        
+
                         # 格式化时间戳为可读时间
                         import datetime
                         created_time = comment.get("ctime", 0)
                         formatted_time = datetime.datetime.fromtimestamp(created_time).strftime("%Y-%m-%d %H:%M:%S")
-                        
+
                         # 处理子回复
                         child_posts = []
                         if comment.get("replies"):
                             for reply in comment["replies"][:5]:  # 最多显示5条回复
                                 reply_content = reply.get("content", {})
                                 reply_message = reply_content.get("message", "")
-                                
+
+                                # 处理回复中的表情
+                                reply_emote = reply_content.get("emote", {})
+                                for e in reply_emote.values():
+                                    if e["type"] == 4:  # 颜文字
+                                        continue
+                                    size = "small" if e["meta"]["size"] == 1 else "medium"
+                                    reply_message = reply_message.replace(e["text"], f'<img class="sticker {size}" src="{e["url"]}">')
+
                                 # 处理回复中的图片
                                 processed_reply_content = reply_message
                                 if reply_content.get("pictures"):
                                     for picture in reply_content["pictures"]:
                                         img_src = picture.get("img_src", "")
                                         if img_src:
-                                            processed_reply_content += f'<img src="{img_src}" style="max-width: 100%; height: auto; border-radius: 6px; margin: 4px 0;">'  # 直接生成HTML
-                                
+                                            processed_reply_content += f'<img src="{img_src}" style="max-width: 100%; height: auto; border-radius: 6px; margin: 4px 0;">'
+
                                 # 格式化回复时间
                                 reply_created_time = reply.get("ctime", 0)
                                 reply_formatted_time = datetime.datetime.fromtimestamp(reply_created_time).strftime("%Y-%m-%d %H:%M:%S")
-                                
+
                                 child_posts.append({
                                     "id": reply.get("rpid_str", ""),
                                     "author": {
@@ -984,7 +1000,7 @@ class BilibiliParser(BaseParser):
                                     "created_time": reply_formatted_time,
                                     "like": reply.get("like", 0)
                                 })
-                        
+
                         # 封装评论数据
                         processed_comments.append({
                             "id": comment.get("rpid_str", ""),
@@ -999,8 +1015,8 @@ class BilibiliParser(BaseParser):
                             "replies_count": comment.get("count", 0),
                             "child_posts": child_posts
                         })
-                    
-                    return processed_comments
+
+                        return processed_comments
                 logger.debug(f"[Bilibili] 热评API返回数据为空或错误: code={data.get('code')}, message={data.get('message')}， `https://api.bilibili.com/x/v2/reply` 作为兜底，我们获取每页20项，查看第一页")
                 # 使用普通评论API作为兜底，按点赞数排序，获取第一页20条
                 fallback_api_url = "https://api.bilibili.com/x/v2/reply"
@@ -1011,14 +1027,14 @@ class BilibiliParser(BaseParser):
                     "ps": 20,  # 每页20条，根据API文档，ps参数定义域是1-20
                     "pn": 1,   # 第1页
                 }
-                
+
                 try:
                     response = await client.get(fallback_api_url, params=fallback_params, headers=request_headers)
                     response.raise_for_status()
                     fallback_data = response.json()
-                    
+
                     logger.debug(f"[Bilibili] 兜底评论API返回: {fallback_data}")
-                    
+
                     if fallback_data.get("code") == 0 and fallback_data.get("data"):
                         data = fallback_data["data"]
                         processed_comments = []
@@ -1029,10 +1045,18 @@ class BilibiliParser(BaseParser):
                             # 确保fallback_replies是列表类型
                             if isinstance(fallback_replies, list):
                                 for comment in fallback_replies[:10]:
-                                    # 处理评论内容，包括图片
+                                    # 处理评论内容，包括图片和表情
                                     content = comment.get("content", {})
                                     message = content.get("message", "")
-                                    
+                                    emote = content.get("emote", {})
+
+                                    # 处理评论中的表情
+                                    for e in emote.values():
+                                        if e["type"] == 4:  # 颜文字
+                                            continue
+                                        size = "small" if e["meta"]["size"] == 1 else "medium"
+                                        message = message.replace(e["text"], f'<img class="sticker {size}" src="{e["url"]}">')
+
                                     # 处理评论中的图片
                                     processed_content = message
                                     if content.get("pictures"):
@@ -1040,19 +1064,27 @@ class BilibiliParser(BaseParser):
                                             img_src = picture.get("img_src", "")
                                             if img_src:
                                                 processed_content += f'<img src="{img_src}" style="max-width: 100%; height: auto; border-radius: 8px; margin: 5px 0;">'
-                                    
+
                                     # 格式化时间戳为可读时间
                                     import datetime
                                     created_time = comment.get("ctime", 0)
                                     formatted_time = datetime.datetime.fromtimestamp(created_time).strftime("%Y-%m-%d %H:%M:%S")
-                                    
+
                                     # 处理子回复
                                     child_posts = []
                                     if comment.get("replies"):
                                         for reply in comment["replies"][:5]:  # 最多显示5条回复
                                             reply_content = reply.get("content", {})
                                             reply_message = reply_content.get("message", "")
-                                            
+
+                                            # 处理回复中的表情
+                                            reply_emote = reply_content.get("emote", {})
+                                            for e in reply_emote.values():
+                                                if e["type"] == 4:  # 颜文字
+                                                    continue
+                                                size = "small" if e["meta"]["size"] == 1 else "medium"
+                                                reply_message = reply_message.replace(e["text"], f'<img class="sticker {size}" src="{e["url"]}">')
+
                                             # 处理回复中的图片
                                             processed_reply_content = reply_message
                                             if reply_content.get("pictures"):
@@ -1060,11 +1092,11 @@ class BilibiliParser(BaseParser):
                                                     img_src = picture.get("img_src", "")
                                                     if img_src:
                                                         processed_reply_content += f'<img src="{img_src}" style="max-width: 100%; height: auto; border-radius: 6px; margin: 4px 0;">'
-                                            
+
                                             # 格式化回复时间
                                             reply_created_time = reply.get("ctime", 0)
                                             reply_formatted_time = datetime.datetime.fromtimestamp(reply_created_time).strftime("%Y-%m-%d %H:%M:%S")
-                                            
+
                                             child_posts.append({
                                                 "id": reply.get("rpid_str", ""),
                                                 "author": {
@@ -1076,7 +1108,7 @@ class BilibiliParser(BaseParser):
                                                 "created_time": reply_formatted_time,
                                                 "like": reply.get("like", 0)
                                             })
-                                    
+
                                     # 封装评论数据
                                     processed_comments.append({
                                         "id": comment.get("rpid_str", ""),
@@ -1091,7 +1123,7 @@ class BilibiliParser(BaseParser):
                                         "replies_count": comment.get("count", 0),
                                         "child_posts": child_posts
                                     })
-                        
+
                         return processed_comments
                     logger.debug(f"[Bilibili] 兜底评论API返回数据为空或错误: code={fallback_data.get('code')}, message={fallback_data.get('message')}")
                     return []
@@ -1101,7 +1133,7 @@ class BilibiliParser(BaseParser):
         except Exception as e:
             logger.error(f"[Bilibili] 获取热评失败: {e}")
             return None
-    
+
     @property
     async def credential(self) -> Credential | None:
         """哔哩哔哩登录凭证"""

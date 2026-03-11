@@ -184,7 +184,7 @@ async def _(message: Message = CommandArg()):
     )
     await UniMessage(UniHelper.record_seg(audio_path)).send()
 
-    if pconfig.need_upload:
+    if pconfig.need_upload_audio:
         await UniMessage(UniHelper.file_seg(audio_path)).send()
 
 

@@ -7,21 +7,24 @@
   <title>Tieba Post</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <style>
+    @import url("https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&family=Segoe+UI:wght@400;600;700&display=swap");
+
     :root {
       --primary-color: #1e88e5;
       --secondary-color: #42a5f5;
       --dark-color: #2c3e50;
       --light-color: #ecf0f1;
       --gray-color: #95a5a6;
-      --border-radius: 8px;
-      --box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+      --border-radius: 12px;
+      --box-shadow: 0 8px 25px rgba(0, 0, 0, 0.08);
+      --transition: all 0.3s ease;
     }
     
     * {
       margin: 0;
       padding: 0;
       box-sizing: border-box;
-      font-family: "Noto Sans SC", system-ui, sans-serif;
+      font-family: 'Segoe UI', 'Noto Sans SC', sans-serif;
     }
     
     body {
@@ -29,49 +32,57 @@
       justify-content: center;
       align-items: flex-start;
       min-height: 100vh;
-      background-color: #f5f5f5;
+      background: transparent;
       padding: 20px;
     }
 
     .card {
       width: 750px;
-      background: #fff;
-      border: 1px solid #ddd;
+      background-color: white;
       border-radius: var(--border-radius);
+      box-shadow: var(--box-shadow);
       overflow: hidden;
       position: relative;
       margin-bottom: 20px;
-      box-shadow: var(--box-shadow);
+      border: 1px solid rgba(0, 0, 0, 0.02);
     }
 
     .decorative-stripe {
       position: absolute;
       width: 100%;
-      height: 4px;
-      background: linear-gradient(90deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+      height: 5px;
+      background: linear-gradient(90deg, var(--primary-color) 0%, var(--secondary-color) 50%, #9b59b6 100%);
       top: 0;
       left: 0;
       z-index: 5;
     }
 
     .content-section {
-      padding: 24px;
+      padding: 30px;
     }
 
     .header {
       display: flex;
+      justify-content: space-between;
       align-items: center;
-      margin-bottom: 20px;
-      padding-bottom: 16px;
+      margin-bottom: 25px;
+      padding-bottom: 20px;
       border-bottom: 1px dashed #eee;
     }
 
+    .author-info {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
     .avatar {
-      width: 56px;
-      height: 56px;
+      width: 64px;
+      height: 64px;
       border-radius: 4px;
-      margin-right: 16px;
-      border: 2px solid #f0f0f0;
+      object-fit: cover;
+      border: 3px solid #fff;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
     }
 
     .user-info {
@@ -81,16 +92,25 @@
     }
 
     .username {
-      font-size: 16px;
+      font-size: 19px;
       font-weight: bold;
       color: var(--dark-color);
-      margin-bottom: 4px;
+      margin-bottom: 6px;
     }
 
     .time {
-      font-size: 12px;
+      font-size: 13px;
       color: var(--gray-color);
       margin-bottom: 4px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .time::before {
+      content: "\f017";
+      font-family: "Font Awesome 6 Free";
+      font-weight: 400;
     }
 
     .forum-name {
@@ -103,40 +123,120 @@
     }
 
     .platform-logo {
-      height: 28px;
+      height: 32px;
       margin-left: 16px;
     }
 
     .title {
-      font-size: 20px;
+      font-size: 22px;
       font-weight: bold;
       margin: 16px 0;
       color: var(--dark-color);
+      line-height: 1.4;
       padding-left: 12px;
       border-left: 4px solid var(--secondary-color);
     }
 
     .text {
       font-size: 15px;
-      line-height: 1.6;
-      color: #333;
+      line-height: 1.7;
+      color: #444;
       margin-bottom: 20px;
+      white-space: pre-wrap;
     }
 
-    .image-container {
-      margin: 16px 0;
-      text-align: center;
+    /* 图片展示区域 */
+    .images-container {
+      margin: 20px 0;
     }
 
-    .image-container img {
-      max-width: 100%;
-      border-radius: 4px;
-      margin-bottom: 8px;
+    .images-header {
+      font-size: 14px;
+      color: var(--dark-color);
+      font-weight: 600;
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .images-header i {
+      color: #2ecc71;
+    }
+
+    .images-grid {
+      display: grid;
+      gap: 6px;
+      width: 100%;
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    .images-grid.single {
+      grid-template-columns: 1fr;
+    }
+
+    .images-grid.single .image-item {
+      max-height: none;
+    }
+
+    .images-grid.double {
+      grid-template-columns: 1fr 1fr;
+    }
+
+    .images-grid.double .image-item {
+      aspect-ratio: 16/9;
+    }
+
+    .images-grid.quad {
+      grid-template-columns: 1fr 1fr;
+      grid-template-rows: 1fr 1fr;
+    }
+
+    .images-grid.quad .image-item {
+      aspect-ratio: 1/1;
+    }
+
+    .images-grid.nine {
+      grid-template-columns: repeat(3, 1fr);
+    }
+
+    .images-grid.nine .image-item {
+      aspect-ratio: 1/1;
+    }
+
+    .image-item {
+      position: relative;
+      overflow: hidden;
+      background: #eee;
+    }
+
+    .image-item img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+
+    .more-count {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.5);
+      backdrop-filter: blur(2px);
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 28px;
+      font-weight: bold;
     }
 
     /* 评论区域 */
     .comments-section {
-      padding: 0 24px 24px;
+      padding: 0 30px 30px;
       border-top: 1px solid #eee;
       margin-top: 20px;
     }
@@ -180,7 +280,7 @@
     .comment-avatar {
       width: 100%;
       height: 100%;
-      border-radius: 4px;
+      border-radius: 50%;
       object-fit: cover;
       border: 2px solid #f0f0f0;
     }
@@ -278,7 +378,7 @@
     .reply-avatar {
       width: 100%;
       height: 100%;
-      border-radius: 4px;
+      border-radius: 50%;
       object-fit: cover;
       border: 2px solid #f0f0f0;
     }
@@ -329,11 +429,38 @@
       word-wrap: break-word;
     }
 
+    /* 处理评论中的图片 */
+    .comment-text img {
+      max-width: 100%;
+      height: auto;
+      border-radius: 8px;
+      margin: 5px 0;
+    }
+
+    /* 处理回复中的图片 */
+    .reply-text img {
+      max-width: 100%;
+      height: auto;
+      border-radius: 6px;
+      margin: 4px 0;
+    }
+
+    /* 处理表情 */
+    .sticker {
+      vertical-align: middle;
+      margin: 0 2px;
+    }
+
+    .sticker.small {
+      width: 24px;
+      height: 24px;
+    }
+
     /* 底部信息栏 */
     .footer-section {
       background-color: var(--dark-color);
       color: rgba(255,255,255,0.8);
-      padding: 15px 24px;
+      padding: 15px 30px;
       display: flex;
       justify-content: space-between;
       align-items: center;
@@ -364,11 +491,13 @@
     
     <div class="content-section">
       <div class="header">
-        <img src="{{ result.author.avatar_path }}" class="avatar" alt="avatar" />
-        <div class="user-info">
-          <div class="username">{{ result.author.name }}</div>
-          <div class="time">{{ result.formatted_datetime }}</div>
-          <div class="forum-name">{{ result.extra.forum.name }}吧</div>
+        <div class="author-info">
+          <img src="{{ result.author.avatar_path }}" class="avatar" alt="avatar" />
+          <div class="user-info">
+            <div class="username">{{ result.author.name }}</div>
+            <div class="time">{{ result.formatted_datetime }}</div>
+            <div class="forum-name">{{ result.extra.forum.name }}吧</div>
+          </div>
         </div>
         <img src="{{ result.platform.logo_path }}" class="platform-logo" alt="{{ result.platform.display_name }}" />
       </div>
@@ -382,19 +511,52 @@
       {% endif %}
 
       {% if result.img_contents %}
-      <div class="image-container">
-        {% for img in result.img_contents %}
-        <img src="{{ img.path }}" alt="image" />
-        {% endfor %}
+      <div class="images-container">
+        <div class="images-header">
+          <i class="fas fa-images"></i> 内容图片
+        </div>
+        {% set imgs = result.img_contents %}
+        {% set count = imgs|length %}
+        {% set grid_class = 'single' %}
+        {% if count == 2 %}{% set grid_class = 'double' %}
+        {% elif count == 4 %}{% set grid_class = 'quad' %}
+        {% elif count >= 3 %}{% set grid_class = 'nine' %}
+        {% endif %}
+        <div class="images-grid {{ grid_class }}">
+          {% for img in imgs[:9] %}
+          <div class="image-item">
+            <img src="{{ img.path }}" alt="image" />
+            {% if loop.last and count > 9 %}
+            <div class="more-count">+{{ count - 9 }}</div>
+            {% endif %}
+          </div>
+          {% endfor %}
+        </div>
       </div>
       {% endif %}
 
       {% if result.graphics_contents %}
-      <div class="image-container">
-        {% for g in result.graphics_contents %}
-        <img src="{{ g.path }}" alt="graphics" />
-        {% if g.alt %}<div class="extra-info">{{ g.alt }}</div>{% endif %}
-        {% endfor %}
+      <div class="images-container">
+        <div class="images-header">
+          <i class="fas fa-images"></i> 内容图片
+        </div>
+        {% set imgs = result.graphics_contents %}
+        {% set count = imgs|length %}
+        {% set grid_class = 'single' %}
+        {% if count == 2 %}{% set grid_class = 'double' %}
+        {% elif count == 4 %}{% set grid_class = 'quad' %}
+        {% elif count >= 3 %}{% set grid_class = 'nine' %}
+        {% endif %}
+        <div class="images-grid {{ grid_class }}">
+          {% for g in imgs[:9] %}
+          <div class="image-item">
+            <img src="{{ g.path }}" alt="graphics" />
+            {% if loop.last and count > 9 %}
+            <div class="more-count">+{{ count - 9 }}</div>
+            {% endif %}
+          </div>
+          {% endfor %}
+        </div>
       </div>
       {% endif %}
     </div>
@@ -426,7 +588,7 @@
           
           <!-- 评论内容 -->
           <div class="comment-text">
-            {{ comment.content | e | replace("\n", "<br>") | safe }}
+            {{ comment.content | safe }}
           </div>
           
           <!-- 统计信息 -->
@@ -467,7 +629,7 @@
                 
                 <!-- 回复内容 -->
                 <div class="reply-text">
-                  {{ reply.content | e | replace("\n", "<br>") | safe }}
+                  {{ reply.content | safe }}
                 </div>
                 
                 <!-- 回复统计信息 -->
@@ -494,10 +656,16 @@
     <div class="footer-section">
       <div class="footer-brand">
         <i class="fas fa-layer-group"></i>
-        <span>百度贴吧 Parser</span>
+        <span>{{ bot_name }} Parser || Designed By LoCCai</span>
       </div>
       <div class="footer-info">
         <span>{{ result.url }}</span>
+        {% if rendering_time %}
+        <span style="margin-left: 15px; color: rgba(255,255,255,0.6); font-size: 11px;">
+          <i class="fas fa-clock" style="margin-right: 4px;"></i>
+          <span>Rendering at {{ rendering_time }}</span>
+        </span>
+        {% endif %}
       </div>
     </div>
   </div>
