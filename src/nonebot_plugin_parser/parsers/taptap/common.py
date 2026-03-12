@@ -28,8 +28,12 @@ try:
     logger.info("[TapTap] 检测到本地浏览器池 (browser_pool_fx)，将启用增强模式")
 except ImportError:
     logger.info("[TapTap] 未检测到本地浏览器池，回退至插件标准浏览器池")
-    # 回退到插件自带的浏览器池
     from ...browser_pool import browser_pool as standard_browser_pool, safe_browser_context
+    
+    local_browser_pool = None
+    create_anti_captcha_config = None
+    get_proxy_config = None
+    simulate_human_behavior = None
 
 
 class TapTapParser(BaseParser):

@@ -13,9 +13,6 @@ from ..data import Comment
 from .encrypt import build_url
 from .model import BaseResult
 
-async def get_async_client():
-    return AsyncClient()
-
 
 class HeyBoxParser(BaseParser):
     platform: ClassVar[Platform] = Platform(
@@ -49,7 +46,7 @@ class HeyBoxParser(BaseParser):
             logger.info(f"成功获取到小黑盒tokenid: {self.x_xhh_tokenid[:5]}...")
             await tab.close()
 
-        async with get_async_client(
+        async with AsyncClient(
             headers=self.headers,
             cookies={"x_xhh_tokenid": self.x_xhh_tokenid},
         ) as client:
