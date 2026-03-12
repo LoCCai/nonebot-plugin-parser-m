@@ -260,11 +260,11 @@ class BaseParser:
     def create_image_contents(
         self,
         image_urls: list[str],
-    ):
+    ) -> list[MediaContent]:
         """创建图片内容列表"""
         from .data import ImageContent
 
-        contents: list[ImageContent] = []
+        contents: list[MediaContent] = []
         for url in image_urls:
             task = DOWNLOADER.download_img(url, ext_headers=self.headers)
             contents.append(ImageContent(task))
@@ -273,11 +273,11 @@ class BaseParser:
     def create_dynamic_contents(
         self,
         dynamic_urls: list[str],
-    ):
+    ) -> list[MediaContent]:
         """创建动态图片内容列表"""
         from .data import DynamicContent
 
-        contents: list[DynamicContent] = []
+        contents: list[MediaContent] = []
         for url in dynamic_urls:
             task = DOWNLOADER.download_video(url, ext_headers=self.headers)
             contents.append(DynamicContent(task))

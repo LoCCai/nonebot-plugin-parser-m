@@ -5,13 +5,10 @@ from httpx import AsyncClient
 from msgspec import convert
 
 from ...utils import format_num
+from ...download import DOWNLOADER
 from ..base import BaseParser, Platform, PlatformEnum, handle
-from ..data import Comment, MediaContent
+from ..data import Comment, MediaContent, ImageContent
 from .model import AtlasData, BlogData, CommentData
-
-async def get_async_client():
-    return AsyncClient()
-
 
 class DuiTangParser(BaseParser):
     platform: ClassVar[Platform] = Platform(
@@ -22,7 +19,7 @@ class DuiTangParser(BaseParser):
     async def parse_blog(self, searched: Match[str]):
         blog_id = searched["blog_id"]
 
-        async with get_async_client() as client:
+        async with AsyncClient() as client:
             blog_data = await self._fetch_blog_detail(client, blog_id=blog_id)
             comment_data = await self._fetch_comments(
                 client,
@@ -30,9 +27,8 @@ class DuiTangParser(BaseParser):
                 subject_type=0,
             )
 
-        content: list[MediaContent | str] = [
-            blog_data.msg,
-            self.create_image_content(blog_data.photo.path),
+        content: list[MediaContent] = [
+            ImageContent(DOWNLOADER.download_img(blog_data.photo.path, ext_headers=self.headers)),
         ]
         comments = self._build_comments(comment_data)
 
@@ -41,7 +37,7 @@ class DuiTangParser(BaseParser):
             contents=content,
             author=self.create_author(
                 name=blog_data.sender.username,
-                avatar=blog_data.sender.avatar,
+                avatar_url=blog_data.sender.avatar,
             ),
             timestamp=blog_data.add_datetime_ts,
         )
@@ -50,7 +46,7 @@ class DuiTangParser(BaseParser):
     async def parse_atlas(self, searched: Match[str]):
         atlas_id = searched["atlas_id"]
 
-        async with get_async_client() as client:
+        async with AsyncClient() as client:
             atlas_data = await self._fetch_atlas_detail(client, atlas_id=atlas_id)
             comment_data = await self._fetch_comments(
                 client,
@@ -58,10 +54,7 @@ class DuiTangParser(BaseParser):
                 subject_type=23,
             )
 
-        content: list[MediaContent | str] = [
-            atlas_data.desc,
-            *self.create_image_contents(atlas_data.img_list),
-        ]
+        content: list[MediaContent] = self.create_image_contents(atlas_data.img_list)
         comments = self._build_comments(comment_data)
 
         return self.result(
@@ -69,7 +62,7 @@ class DuiTangParser(BaseParser):
             contents=content,
             author=self.create_author(
                 name=atlas_data.sender.username,
-                avatar=atlas_data.sender.avatar,
+                avatar_url=atlas_data.sender.avatar,
             ),
             timestamp=atlas_data.created_at // 1000,
         )
@@ -175,7 +168,6 @@ class DuiTangParser(BaseParser):
                 author=self.create_author(
                     name=root_comment.sender.username,
                     avatar_url=root_comment.sender.avatar,
-                    id=str(root_comment.sender.id),
                 ),
                 content=root_content,
                 timestamp=root_comment.create_time // 1000,
