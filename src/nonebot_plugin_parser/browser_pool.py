@@ -158,14 +158,16 @@ class BrowserWrapper:
     """浏览器包装器，提供简化的浏览器操作接口"""
     
     async def new_tab(self, url=None):
-        """创建新标签页"""
+        """创建新标签页并返回包装器"""
         from playwright.async_api import Page
         
         class TabWrapper:
             """标签页包装器"""
             
-            def __init__(self, page: Page):
+            def __init__(self, page: Page, context_cm, browser_cm):
                 self.page = page
+                self._context_cm = context_cm
+                self._browser_cm = browser_cm
             
             async def html(self):
                 """获取页面HTML"""
@@ -184,13 +186,30 @@ class BrowserWrapper:
             
             async def close(self):
                 """关闭标签页"""
-                return await self.page.close()
+                try:
+                    await self._context_cm.__aexit__(None, None, None)
+                except Exception:
+                    pass
+                try:
+                    await self._browser_cm.__aexit__(None, None, None)
+                except Exception:
+                    pass
         
-        async with browser_pool.get_browser() as browser:
-            async with safe_browser_context(browser) as (context, page):
+        browser_cm = browser_pool.get_browser()
+        browser = await browser_cm.__aenter__()
+        try:
+            context_cm = safe_browser_context(browser)
+            context, page = await context_cm.__aenter__()
+            try:
                 if url:
                     await page.goto(url)
-                return TabWrapper(page)
+                return TabWrapper(page, context_cm, browser_cm)
+            except Exception:
+                await context_cm.__aexit__(None, None, None)
+                raise
+        except Exception:
+            await browser_cm.__aexit__(None, None, None)
+            raise
 
 BROWSER = BrowserWrapper()
 

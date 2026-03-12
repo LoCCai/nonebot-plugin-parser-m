@@ -1,4 +1,4 @@
-from msgspec import Struct
+from msgspec import Struct, field
 
 
 class Sender(Struct):
@@ -25,13 +25,13 @@ class BlogData(Struct):
 class AtlasData(Struct):
     id: int
     desc: str
-    img_list: list[str]
     visit_count: int
     like_count: int
     favorite_count: int
     comment_count: int
     created_at: int
     sender: Sender
+    img_list: list[str] = field(default_factory=list)
 
 
 class SubComment(Struct):
@@ -49,7 +49,7 @@ class RootComment(Struct):
     ipaddr: str
     sender: Sender
     replies: list[SubComment]
-    img_list: list[str]
+    img_list: list[str] = field(default_factory=list)
 
 
 class CommentData(Struct):

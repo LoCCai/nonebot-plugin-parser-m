@@ -59,8 +59,11 @@ class ZhiHuParser(BaseParser):
 
     async def fetch_initial_state(self, url: str):
         tab = await BROWSER.new_tab(url)
-        html = await tab.html()
-        await tab.close()
+        try:
+            html = await tab.html()
+        finally:
+            await tab.close()
+        
         if matched := INITIAL_DATA.search(html):
             raw = matched[1].replace("undefined", "null")
         else:

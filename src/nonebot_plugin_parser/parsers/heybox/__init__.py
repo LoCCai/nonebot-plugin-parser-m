@@ -42,9 +42,11 @@ class HeyBoxParser(BaseParser):
 
         if not self.x_xhh_tokenid:
             tab = await BROWSER.new_tab(url="https://www.xiaoheihe.cn/")
-            self.x_xhh_tokenid = await tab.run_js("window.SMSdk.getDeviceId()", as_expr=True)
-            logger.info(f"成功获取到小黑盒tokenid: {self.x_xhh_tokenid[:5]}...")
-            await tab.close()
+            try:
+                self.x_xhh_tokenid = await tab.run_js("window.SMSdk.getDeviceId()", as_expr=True)
+                logger.info(f"成功获取到小黑盒tokenid: {self.x_xhh_tokenid[:5]}...")
+            finally:
+                await tab.close()
 
         async with AsyncClient(
             headers=self.headers,
