@@ -17,6 +17,13 @@ from ...constants import PlatformEnum
 # 优先尝试导入本地高性能浏览器池，如果不存在则使用插件自带池
 # ==========================================================
 HAS_LOCAL_POOL = False
+local_browser_pool = None
+create_anti_captcha_config = None
+get_proxy_config = None
+simulate_human_behavior = None
+standard_browser_pool = None
+safe_browser_context = None
+
 try:
     from src.utils.browser_pool_fx import (
         browser_pool as local_browser_pool,
@@ -29,11 +36,6 @@ try:
 except ImportError:
     logger.info("[TapTap] 未检测到本地浏览器池，回退至插件标准浏览器池")
     from ...browser_pool import browser_pool as standard_browser_pool, safe_browser_context
-    
-    local_browser_pool = None
-    create_anti_captcha_config = None
-    get_proxy_config = None
-    simulate_human_behavior = None
 
 
 class TapTapParser(BaseParser):

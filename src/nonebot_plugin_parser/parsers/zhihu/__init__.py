@@ -3,6 +3,7 @@ from typing import ClassVar
 
 from httpx import AsyncClient
 from ...utils import format_num
+from ...download import DOWNLOADER
 from ..base import (
     PlatformEnum,
     Platform,
@@ -10,7 +11,7 @@ from ..base import (
     handle,
     ParseException,
 )
-from ..data import MediaContent
+from ..data import MediaContent, ImageContent
 from ...browser_pool import BROWSER
 from bs4 import BeautifulSoup
 from bs4.element import Tag, NavigableString
@@ -58,7 +59,7 @@ class ZhiHuParser(BaseParser):
 
     async def fetch_initial_state(self, url: str):
         tab = await BROWSER.new_tab(url)
-        html = await tab.html
+        html = await tab.html()
         await tab.close()
         if matched := INITIAL_DATA.search(html):
             raw = matched[1].replace("undefined", "null")
@@ -155,7 +156,7 @@ class ZhiHuParser(BaseParser):
                         or attrs.get("data-default-watermark-src")
                         or attrs.get("src")
                     ):
-                        yield self.create_image_content(src)
+                        yield ImageContent(DOWNLOADER.download_img(src, ext_headers=self.headers))
 
     async def _parse_video_box(self, tag: Tag):
         """
