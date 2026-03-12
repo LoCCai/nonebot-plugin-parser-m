@@ -12,7 +12,7 @@ from typing_extensions import Unpack, ParamSpec
 P = ParamSpec('P')
 R = TypeVar('R')
 
-from .data import Platform, ParseResult, ParseResultKwargs
+from .data import Platform, ParseResult, ParseResultKwargs, MediaContent, LivePhotoContent
 from ..config import pconfig as pconfig
 from ..download import DOWNLOADER as DOWNLOADER
 from ..constants import IOS_HEADER, COMMON_HEADER, ANDROID_HEADER, COMMON_TIMEOUT
@@ -317,3 +317,60 @@ class BaseParser:
 
         image_task = DOWNLOADER.download_img(image_url, ext_headers=self.headers)
         return GraphicsContent(image_task, text, alt)
+
+    def create_live_photo_content(
+        self,
+        video_url: str,
+        image_url: str,
+        bgm_url: str | None = None,
+    ):
+        """创建Live Photo内容"""
+        video_task = DOWNLOADER.download_video(video_url, ext_headers=self.headers)
+        image_task = DOWNLOADER.download_img(image_url, ext_headers=self.headers)
+        bgm_task = None
+        if bgm_url:
+            bgm_task = DOWNLOADER.download_audio(bgm_url, ext_headers=self.headers)
+        return LivePhotoContent(video_task, image_task, bgm_task)
+
+    def create_stats(
+        self,
+        view_count: str | None = None,
+        like_count: str | None = None,
+        collect_count: str | None = None,
+        share_count: str | None = None,
+        comment_count: str | None = None,
+        extra: dict[str, Any] | None = None,
+    ):
+        """创建统计信息"""
+        from .data import Stats
+
+        return Stats(
+            view_count=view_count,
+            like_count=like_count,
+            collect_count=collect_count,
+            share_count=share_count,
+            comment_count=comment_count,
+            extra=extra or {},
+        )
+
+    def create_comment(
+        self,
+        author,
+        content,
+        timestamp: int | None = None,
+        stats=None,
+        location: str | None = None,
+    ):
+        """创建评论信息"""
+        from .data import Comment
+
+        if stats is None:
+            stats = self.create_stats()
+
+        return Comment(
+            author=author,
+            content=content,
+            timestamp=timestamp,
+            stats=stats,
+            location=location,
+        )

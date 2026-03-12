@@ -227,3 +227,10 @@ def write_json_to_data(data: dict[str, Any] | str, file_name: str):
 def is_module_available(module_name: str) -> bool:
     """检查模块是否可用"""
     return importlib.util.find_spec(module_name) is not None
+
+
+def format_num(num: int | None) -> str:
+    """将数字格式化为 1.2万 的形式"""
+    if num is None:
+        return "-"
+    return str(num) if num < 10000 else f"{num / 10000:.1f}万"

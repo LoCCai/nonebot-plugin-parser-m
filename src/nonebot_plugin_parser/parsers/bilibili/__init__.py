@@ -22,7 +22,7 @@ from ..base import (
     handle,
     pconfig,
 )
-from ..data import Platform, ImageContent, MediaContent
+from ..data import Platform, ImageContent, LivePhotoContent, MediaContent
 from ..cookie import ck2dict
 
 # 选择客户端
@@ -275,14 +275,21 @@ class BilibiliParser(BaseParser):
 
         author = self.create_author(dynamic_info.name, dynamic_info.avatar)
 
-        # 下载图片
+        # 下载图片和 Live Photo
         contents: list[MediaContent] = []
-        image_urls = dynamic_info.image_urls
+        medias = dynamic_info.medias
 
-        # 只下载主体图片，不添加默认图片到contents
-        for image_url in image_urls:
-            img_task = DOWNLOADER.download_img(image_url, ext_headers=self.headers)
-            contents.append(ImageContent(img_task))
+        # 只下载主体媒体，不添加默认图片到contents
+        for media in medias:
+            if media["type"] == "live_photo":
+                # 创建 Live Photo 内容
+                video_task = DOWNLOADER.download_video(media["video_url"], ext_headers=self.headers)
+                image_task = DOWNLOADER.download_img(media["image_url"], ext_headers=self.headers)
+                contents.append(LivePhotoContent(video_task, image_task))
+            elif media["type"] == "image":
+                # 创建普通图片内容
+                img_task = DOWNLOADER.download_img(media["url"], ext_headers=self.headers)
+                contents.append(ImageContent(img_task))
 
         # 提取当前动态的统计数据
         stats = {}

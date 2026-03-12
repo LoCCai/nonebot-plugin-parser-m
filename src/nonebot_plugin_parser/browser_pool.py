@@ -153,6 +153,47 @@ async def safe_browser_context(browser, max_retries=2):
 # 初始化浏览器池
 browser_pool = BrowserPool()
 
+# 全局浏览器实例，用于简化调用
+class BrowserWrapper:
+    """浏览器包装器，提供简化的浏览器操作接口"""
+    
+    async def new_tab(self, url=None):
+        """创建新标签页"""
+        from playwright.async_api import Page
+        
+        class TabWrapper:
+            """标签页包装器"""
+            
+            def __init__(self, page: Page):
+                self.page = page
+            
+            async def html(self):
+                """获取页面HTML"""
+                return await self.page.content()
+            
+            async def get(self, url):
+                """访问URL"""
+                return await self.page.goto(url)
+            
+            async def run_js(self, code, as_expr=False):
+                """运行JavaScript"""
+                if as_expr:
+                    return await self.page.evaluate(code)
+                else:
+                    return await self.page.evaluate(code)
+            
+            async def close(self):
+                """关闭标签页"""
+                return await self.page.close()
+        
+        async with browser_pool.get_browser() as browser:
+            async with safe_browser_context(browser) as (context, page):
+                if url:
+                    await page.goto(url)
+                return TabWrapper(page)
+
+BROWSER = BrowserWrapper()
+
 # 应用启动和关闭时的处理
 from nonebot import get_driver
 

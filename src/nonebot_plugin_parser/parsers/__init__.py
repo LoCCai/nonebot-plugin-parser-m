@@ -16,6 +16,10 @@ from .taptap import TapTapParser as TapTapParser
 from .qsmusic import QSMusicParser as QSMusicParser
 from .kuwo import KuWoParser as KuWoParser
 from .toutiao import ToutiaoParser as ToutiaoParser
+from .qqmusic import QQMusicParser as QQMusicParser
+from .zhihu import ZhiHuParser as ZhiHuParser
+from .duitang import DuiTangParser as DuiTangParser
+from .heybox import HeyBoxParser as HeyBoxParser
 
 if YTDLP_DOWNLOADER is not None:
     from .tiktok import TikTokParser as TikTokParser
@@ -26,25 +30,33 @@ from .data import (
     Author,
     Platform,
     ParseResult,
+    MediaContent,
     AudioContent,
     ImageContent,
     VideoContent,
     DynamicContent,
     GraphicsContent,
+    LivePhotoContent,
+    Stats,
+    Comment,
 )
 
 __all__ = [
     "AudioContent",
     "Author",
     "BaseParser",
+    "Comment",
     "DynamicContent",
     "GraphicsContent",
     "ImageContent",
     "KuGouParser",
     "KuWoParser",
+    "LivePhotoContent",
+    "MediaContent",
     "NCMParser",
     "ParseResult",
     "Platform",
+    "Stats",
     "VideoContent",
     "handle",
     "NGAParser",
@@ -59,4 +71,8 @@ __all__ = [
     "QSMusicParser",
     "ToutiaoParser",
     "TiebaParser",
+    "QQMusicParser",
+    "ZhiHuParser",
+    "DuiTangParser",
+    "HeyBoxParser",
 ]

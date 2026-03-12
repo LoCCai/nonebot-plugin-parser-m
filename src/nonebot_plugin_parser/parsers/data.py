@@ -1,4 +1,4 @@
-from typing import Any, Callable, Coroutine
+from typing import Any, Callable, Coroutine, Sequence
 from asyncio import Task
 from pathlib import Path
 from datetime import datetime
@@ -103,6 +103,34 @@ class GraphicsContent(MediaContent):
         return repr + ")"
 
 
+@dataclass(repr=False, slots=True)
+class LivePhotoContent(MediaContent):
+    """iPhone Live Photo 内容"""
+
+    base_image: Path | Task[Path] | Callable[[], Coroutine[Any, Any, Path]]
+    """iPhone Live Photo 底图"""
+    bgm: Path | Task[Path] | Callable[[], Coroutine[Any, Any, Path]] | None = None
+    """iPhone Live Photo 背景音乐"""
+
+    async def get_base(self) -> Path:
+        """获取 iPhone Live Photo 底图"""
+        if isinstance(self.base_image, Path):
+            return self.base_image
+        elif isinstance(self.base_image, Task):
+            self.base_image = await self.base_image
+            return self.base_image
+        else:
+            self.base_image = await self.base_image()
+            return self.base_image
+
+    def __repr__(self) -> str:
+        prefix = self.__class__.__name__
+        return (
+            f"{prefix}(video={repr_path_task(self.path_task)}, base_image={repr_path_task(self.base_image)}, "
+            f"bgm={repr_path_task(self.bgm) if self.bgm else None})"
+        )
+
+
 @dataclass(slots=True)
 class Platform:
     """平台信息"""
@@ -142,6 +170,64 @@ class Author:
 
 
 @dataclass(repr=False, slots=True)
+class Stats:
+    """统计信息"""
+
+    view_count: str | None = None
+    """浏览数"""
+    like_count: str | None = None
+    """点赞数"""
+    collect_count: str | None = None
+    """收藏数"""
+    share_count: str | None = None
+    """分享数"""
+    comment_count: str | None = None
+    """评论数"""
+    extra: dict[str, Any] = field(default_factory=dict)
+    """额外信息, 比如弹幕数/硬币数"""
+
+    def __repr__(self) -> str:
+        prefix = self.__class__.__name__
+        return (
+            f"{prefix}(view_count={self.view_count}, like_count={self.like_count}, "
+            f"collect_count={self.collect_count}, share_count={self.share_count}, "
+            f"comment_count={self.comment_count}, extra={self.extra})"
+        )
+
+
+@dataclass(repr=False, slots=True)
+class Comment:
+    """评论信息"""
+
+    author: Author
+    """作者信息"""
+    content: Sequence[MediaContent | str | None]
+    """评论内容，可以是文本或媒体对象"""
+    timestamp: int | None
+    """发布时间戳，单位秒"""
+    stats: Stats = field(default_factory=Stats)
+    """统计信息"""
+    location: str | None = None
+    """位置信息，可选"""
+    replies: list["Comment"] = field(default_factory=list)
+    """子评论列表"""
+    parent_author: Author | None = None
+    """父评论作者，用于渲染“回复 @xxx”，可选"""
+
+    def add_reply(self, comment: "Comment", parent: Author | None = None):
+        """添加子评论"""
+        comment.parent_author = parent or self.author
+        self.replies.append(comment)
+
+    @property
+    def formatted_datetime(self) -> str:
+        """格式化时间戳"""
+        if self.timestamp is None:
+            return ""
+        return datetime.fromtimestamp(self.timestamp).strftime("%Y-%m-%d %H:%M:%S")
+
+
+@dataclass(repr=False, slots=True)
 class ParseResult:
     """完整的解析结果"""
 
@@ -167,6 +253,13 @@ class ParseResult:
     """渲染图片"""
     media_contents: list[tuple[type, 'MediaContent | Path']] = field(default_factory=list)
     """延迟发送的媒体内容"""
+    stats: Stats = field(default_factory=Stats)
+    """统计信息"""
+    comments: list[Comment] = field(default_factory=list)
+    """评论列表"""
+    content: Sequence[MediaContent | str | None] = field(default_factory=list)
+    """资源/文本内容"""
+
 
     @property
     def header(self) -> str | None:
@@ -209,6 +302,10 @@ class ParseResult:
     @property
     def graphics_contents(self) -> list[GraphicsContent]:
         return [cont for cont in self.contents if isinstance(cont, GraphicsContent)]
+
+    @property
+    def live_photo_contents(self) -> list[LivePhotoContent]:
+        return [cont for cont in self.contents if isinstance(cont, LivePhotoContent)]
 
     @property
     async def cover_path(self) -> Path | None:

@@ -28,6 +28,9 @@ class OpusImage(Struct):
     """图文动态图片信息"""
 
     url: str
+    live_url: str | None = None
+    """iPhone Live Photo 视频流（如果有）"""
+
 
 
 class OpusSummary(Struct):
@@ -97,6 +100,42 @@ class DynamicMajor(Struct):
         if image_urls:
             return image_urls[0]
         return None
+
+    @property
+    def medias(self) -> list:
+        """
+        获取媒体资源列表（图片 + Live Photo）
+        说明:
+            - 对于 opus.pics:
+                - 如果有 live_url -> 视为 Live Photo
+                - 否则 -> 普通图片
+            - 对于 draw.pictures:
+                - 当前只有普通图片（没有 live）
+        """
+        items = []
+
+        # 优先处理 opus 图文里的图片 / livephoto
+        if self.type == "MAJOR_TYPE_OPUS" and self.opus:
+            for pic in self.opus.pics:
+                if pic.live_url:
+                    # 这里需要返回 Live Photo 相关信息
+                    items.append({"type": "live_photo", "image_url": pic.url, "video_url": pic.live_url})
+                else:
+                    items.append({"type": "image", "url": pic.url})
+
+        # draw 类型图片动态
+        if self.type == "MAJOR_TYPE_DRAW" and self.draw:
+            pictures = self.draw.get("pictures", [])
+            for pic in pictures:
+                if img_src := pic.get("img_src"):
+                    items.append({"type": "image", "url": img_src})
+
+        # 视频封面作为普通图片补充（如果前面没有任何媒体）
+        if not items and self.type == "MAJOR_TYPE_ARCHIVE" and self.archive:
+            if cover := self.archive.cover:
+                items.append({"type": "image", "url": cover})
+
+        return items
 
 
 class DynamicModule(Struct):
@@ -246,6 +285,53 @@ class DynamicInfo(Struct):
 
         # 3. 转发动态时，不再从orig获取封面
         return None
+
+    @property
+    def medias(self) -> list:
+        """
+        统一获取当前动态的媒体资源（图片 + Live Photo）
+
+        优先从 major 结构中解析（标准路径），
+        对于部分老数据 / 特殊分享结构，再从 module_dynamic 兜底
+        """
+        # 1. 标准 major 结构
+        if major_info := self.modules.major_info:
+            major = convert(major_info, DynamicMajor)
+            if medias := major.medias:
+                return medias
+
+        # 2. 处理旧式 / 特殊图文结构：直接从 module_dynamic 中兜底
+        if self.type == "DYNAMIC_TYPE_DRAW" and self.modules.module_dynamic:
+            dynamic_data = self.modules.module_dynamic
+            if isinstance(dynamic_data, dict):
+                # 2.1 直接 pics: [{url: ...}]
+                if "pics" in dynamic_data:
+                    return [
+                        {"type": "image", "url": pic.get("url")}
+                        for pic in dynamic_data["pics"]
+                        if pic.get("url")
+                    ]
+
+                # 2.2 major 下的 pics / draw.pictures
+                if "major" in dynamic_data and isinstance(
+                    (major := dynamic_data["major"]), dict
+                ):
+                    if "pics" in major:
+                        return [
+                            {"type": "image", "url": pic.get("url")}
+                            for pic in major["pics"]
+                            if pic.get("url")
+                        ]
+                    draw = major.get("draw")
+                    if isinstance(draw, dict) and "pictures" in draw:
+                        return [
+                            {"type": "image", "url": pic.get("img_src")}
+                            for pic in draw["pictures"]
+                            if pic.get("img_src")
+                        ]
+
+        # 3. 转发动态 / 无图动态：不再从 orig 递归取图，交由上游用默认封面兜底
+        return []
 
 
 class DynamicData(Struct):

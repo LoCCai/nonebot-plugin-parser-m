@@ -47,6 +47,10 @@ class PlatformEnum(str, Enum):
     KUWO = "kuwo"
     TOUTIAO = "toutiao"
     TIEBA = "tieba"
+    QQMUSIC = "qqmusic"
+    ZHIHU = "zhihu"
+    DUITANG = "duitang"
+    HEYBOX = "heybox"
 
     def __str__(self) -> str:
         return self.value
