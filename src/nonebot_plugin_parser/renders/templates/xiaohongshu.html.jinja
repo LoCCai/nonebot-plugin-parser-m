@@ -1,0 +1,623 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>XiaoHongShu Card</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        @import url("https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&family=Inter:wght@400;500;600;700&display=swap");
+
+        :root {
+            --primary-color: #ff2442;
+            --secondary-color: #fe2c55;
+            --dark-color: #333;
+            --light-color: #f5f5f5;
+            --gray-color: #999;
+            --border-radius: 16px;
+            --box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Inter', 'Noto Sans SC', -apple-system, BlinkMacSystemFont, sans-serif;
+        }
+
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            min-height: 100vh;
+            background: transparent;
+            padding: 20px;
+        }
+
+        .card {
+            width: 750px;
+            background-color: white;
+            border-radius: var(--border-radius);
+            box-shadow: var(--box-shadow);
+            overflow: hidden;
+            position: relative;
+            border: 1px solid rgba(0,0,0,0.04);
+        }
+
+        .decorative-stripe {
+            position: absolute;
+            width: 100%;
+            height: 4px;
+            background: linear-gradient(90deg, var(--primary-color) 0%, #ff6b6b 100%);
+            top: 0;
+            left: 0;
+            z-index: 5;
+        }
+
+        .content-section {
+            padding: 32px;
+        }
+
+        .header {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .avatar {
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 3px solid #fff;
+            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        .user-info {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            flex: 1;
+        }
+
+        .username {
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--dark-color);
+            line-height: 1.2;
+        }
+
+        .time {
+            font-size: 13px;
+            color: var(--gray-color);
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .platform-tag {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 12px;
+            background: linear-gradient(135deg, var(--primary-color) 0%, #ff6b6b 100%);
+            color: white;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .stats-container {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 12px;
+            margin-bottom: 24px;
+            padding: 16px;
+            background-color: #fafafa;
+            border-radius: 12px;
+        }
+
+        .stat-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 6px;
+            padding: 12px;
+            background-color: white;
+            border-radius: 10px;
+            border: 1px solid #f0f0f0;
+        }
+
+        .stat-icon {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            color: white;
+        }
+
+        .stat-icon.like { background-color: #ff2442; }
+        .stat-icon.comment { background-color: #ff6b6b; }
+        .stat-icon.share { background-color: #ff8787; }
+        .stat-icon.collect { background-color: #ffa5a5; }
+
+        .stat-value {
+            font-size: 16px;
+            font-weight: 700;
+            color: var(--dark-color);
+        }
+
+        .stat-label {
+            font-size: 11px;
+            color: var(--gray-color);
+        }
+
+        .title {
+            font-size: 20px;
+            font-weight: 700;
+            color: var(--dark-color);
+            margin-bottom: 16px;
+            line-height: 1.4;
+        }
+
+        .text {
+            font-size: 15px;
+            line-height: 1.7;
+            color: #555;
+            margin-bottom: 20px;
+            white-space: pre-wrap;
+        }
+
+        .images-container {
+            margin: 20px 0;
+        }
+
+        .images-grid {
+            display: grid;
+            gap: 8px;
+            width: 100%;
+            border-radius: 12px;
+            overflow: hidden;
+        }
+
+        .images-grid.single { grid-template-columns: 1fr; }
+        .images-grid.double { grid-template-columns: repeat(2, 1fr); }
+        .images-grid.triple { grid-template-columns: repeat(3, 1fr); }
+        .images-grid.quad { grid-template-columns: repeat(2, 1fr); grid-template-rows: repeat(2, 1fr); }
+        .images-grid.nine { grid-template-columns: repeat(3, 1fr); }
+
+        .image-item {
+            position: relative;
+            overflow: hidden;
+            background: #f5f5f5;
+            aspect-ratio: 1/1;
+        }
+
+        .image-item img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+
+        .more-count {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(2px);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 28px;
+            font-weight: bold;
+        }
+
+        .comments-section {
+            padding: 0 32px 32px;
+            border-top: 1px solid #f0f0f0;
+            margin-top: 24px;
+        }
+
+        .comments-header {
+            font-size: 16px;
+            font-weight: 700;
+            color: var(--dark-color);
+            margin: 24px 0 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .comments-header i {
+            color: var(--primary-color);
+        }
+
+        .comment-container {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 20px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid #f5f5f5;
+        }
+
+        .comment-container:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
+            padding-bottom: 0;
+        }
+
+        .comment-avatar-wrapper {
+            flex-shrink: 0;
+            width: 40px;
+            height: 40px;
+        }
+
+        .comment-avatar {
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 2px solid #f0f0f0;
+        }
+
+        .comment-content-wrapper {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .comment-author-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 6px;
+        }
+
+        .comment-author-name {
+            font-weight: 600;
+            font-size: 14px;
+            color: var(--dark-color);
+        }
+
+        .comment-time {
+            font-size: 12px;
+            color: var(--gray-color);
+        }
+
+        .comment-text {
+            font-size: 14px;
+            line-height: 1.6;
+            color: #444;
+            margin-bottom: 8px;
+            word-wrap: break-word;
+        }
+
+        .comment-stats {
+            display: flex;
+            gap: 16px;
+            font-size: 12px;
+            color: var(--gray-color);
+        }
+
+        .comment-stat {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .comment-replies {
+            margin-top: 12px;
+            padding-left: 12px;
+            border-left: 2px solid #f0f0f0;
+        }
+
+        .reply-container {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 12px;
+            padding-bottom: 12px;
+            border-bottom: 1px dashed #f5f5f5;
+        }
+
+        .reply-container:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
+            padding-bottom: 0;
+        }
+
+        .reply-avatar-wrapper {
+            flex-shrink: 0;
+            width: 32px;
+            height: 32px;
+        }
+
+        .reply-avatar {
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 2px solid #f0f0f0;
+        }
+
+        .reply-content-wrapper {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .reply-author-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 4px;
+        }
+
+        .reply-author-name {
+            font-weight: 600;
+            font-size: 13px;
+            color: var(--dark-color);
+        }
+
+        .reply-time {
+            font-size: 11px;
+            color: var(--gray-color);
+        }
+
+        .reply-text {
+            font-size: 13px;
+            line-height: 1.5;
+            color: #555;
+            word-wrap: break-word;
+        }
+
+        .footer-section {
+            background-color: #fafafa;
+            padding: 16px 32px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 12px;
+            color: var(--gray-color);
+            border-top: 1px solid #f0f0f0;
+        }
+
+        .footer-brand {
+            font-weight: 600;
+            color: var(--dark-color);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .footer-info {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+    </style>
+</head>
+<body>
+
+{% macro render_card(result, is_repost=False) %}
+<div class="card">
+    {% if not is_repost %}
+    <div class="decorative-stripe"></div>
+    {% endif %}
+
+    <div class="content-section">
+        {% if result.author %}
+        <div class="header">
+            {% if result.author.avatar_path %}
+            <img src="{{ result.author.avatar_path }}" class="avatar" alt="avatar">
+            {% endif %}
+            <div class="user-info">
+                <div class="username">{{ result.author.name }}</div>
+                {% if result.formatted_datetime %}
+                <div class="time">
+                    <i class="far fa-clock"></i>
+                    {{ result.formatted_datetime }}
+                </div>
+                {% endif %}
+            </div>
+            {% if not is_repost and result.platform %}
+            <div class="platform-tag">
+                <i class="fas fa-book-open"></i>
+                <span>{{ result.platform.display_name }}</span>
+            </div>
+            {% endif %}
+        </div>
+        {% endif %}
+
+        {% if result.stats %}
+        <div class="stats-container">
+            {% if result.stats.like_count %}
+            <div class="stat-item">
+                <div class="stat-icon like">
+                    <i class="fas fa-heart"></i>
+                </div>
+                <div class="stat-value">{{ result.stats.like_count }}</div>
+                <div class="stat-label">点赞</div>
+            </div>
+            {% endif %}
+            
+            {% if result.stats.comment_count %}
+            <div class="stat-item">
+                <div class="stat-icon comment">
+                    <i class="fas fa-comment"></i>
+                </div>
+                <div class="stat-value">{{ result.stats.comment_count }}</div>
+                <div class="stat-label">评论</div>
+            </div>
+            {% endif %}
+            
+            {% if result.stats.share_count %}
+            <div class="stat-item">
+                <div class="stat-icon share">
+                    <i class="fas fa-share"></i>
+                </div>
+                <div class="stat-value">{{ result.stats.share_count }}</div>
+                <div class="stat-label">分享</div>
+            </div>
+            {% endif %}
+            
+            {% if result.stats.collect_count %}
+            <div class="stat-item">
+                <div class="stat-icon collect">
+                    <i class="fas fa-star"></i>
+                </div>
+                <div class="stat-value">{{ result.stats.collect_count }}</div>
+                <div class="stat-label">收藏</div>
+            </div>
+            {% endif %}
+        </div>
+        {% endif %}
+
+        {% if result.title %}
+        <div class="title">{{ result.title }}</div>
+        {% endif %}
+
+        {% if result.text %}
+        <div class="text">{{ result.text }}</div>
+        {% endif %}
+
+        {% if result.img_contents %}
+        {% set imgs = result.img_contents %}
+        {% set count = imgs|length %}
+        {% if count > 0 %}
+        <div class="images-container">
+            {% set grid_class = 'single' %}
+            {% if count == 2 %}{% set grid_class = 'double' %}
+            {% elif count == 3 %}{% set grid_class = 'triple' %}
+            {% elif count == 4 %}{% set grid_class = 'quad' %}
+            {% elif count >= 5 %}{% set grid_class = 'nine' %}
+            {% endif %}
+
+            <div class="images-grid {{ grid_class }}">
+                {% for img in imgs[:9] %}
+                <div class="image-item">
+                    <img src="{{ img.path }}">
+                    {% if loop.last and count > 9 %}
+                    <div class="more-count">+{{ count - 9 }}</div>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+        {% endif %}
+    </div>
+
+    {% if result.comments and result.comments|length > 0 %}
+    <div class="comments-section">
+        <div class="comments-header">
+            <i class="fas fa-comments"></i>
+            评论 ({{ result.comments|length }})
+        </div>
+
+        {% for comment in result.comments %}
+        <div class="comment-container">
+            <div class="comment-avatar-wrapper">
+                <img src="{{ comment.author.avatar_path }}" class="comment-avatar" alt="avatar">
+            </div>
+
+            <div class="comment-content-wrapper">
+                <div class="comment-author-row">
+                    <div class="comment-author-name">{{ comment.author.name }}</div>
+                    <div class="comment-time">{{ comment.formatted_datetime }}</div>
+                </div>
+
+                <div class="comment-text">
+                    {% for item in comment.content %}
+                        {% if item is string %}
+                            {{ item }}
+                        {% endif %}
+                    {% endfor %}
+                </div>
+
+                <div class="comment-stats">
+                    {% if comment.stats.like_count %}
+                    <span class="comment-stat">
+                        <i class="fas fa-thumbs-up"></i>
+                        <span>{{ comment.stats.like_count }}</span>
+                    </span>
+                    {% endif %}
+                    {% if comment.stats.comment_count %}
+                    <span class="comment-stat">
+                        <i class="fas fa-reply"></i>
+                        <span>{{ comment.stats.comment_count }}</span>
+                    </span>
+                    {% endif %}
+                    {% if comment.location %}
+                    <span class="comment-stat">
+                        <i class="fas fa-map-marker-alt"></i>
+                        <span>{{ comment.location }}</span>
+                    </span>
+                    {% endif %}
+                </div>
+
+                {% if comment.replies and comment.replies|length > 0 %}
+                <div class="comment-replies">
+                    {% for reply in comment.replies %}
+                    <div class="reply-container">
+                        <div class="reply-avatar-wrapper">
+                            <img src="{{ reply.author.avatar_path }}" class="reply-avatar" alt="avatar">
+                        </div>
+
+                        <div class="reply-content-wrapper">
+                            <div class="reply-author-row">
+                                <div class="reply-author-name">{{ reply.author.name }}</div>
+                                <div class="reply-time">{{ reply.formatted_datetime }}</div>
+                            </div>
+
+                            <div class="reply-text">
+                                {% for item in reply.content %}
+                                    {% if item is string %}
+                                        {{ item }}
+                                    {% endif %}
+                                {% endfor %}
+                            </div>
+
+                            <div class="comment-stats">
+                                {% if reply.stats.like_count %}
+                                <span class="comment-stat">
+                                    <i class="fas fa-thumbs-up"></i>
+                                    <span>{{ reply.stats.like_count }}</span>
+                                </span>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    {% if not is_repost %}
+    <div class="footer-section">
+        <div class="footer-brand">
+            <i class="fas fa-layer-group"></i>
+            <span>{{ bot_name }} Parser</span>
+        </div>
+        <div class="footer-info">
+            <i class="fas fa-clock"></i>
+            <span>Rendering at {{ rendering_time }}</span>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endmacro %}
+
+{{ render_card(result) }}
+
+</body>
+</html>

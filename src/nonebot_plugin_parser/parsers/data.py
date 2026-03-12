@@ -363,3 +363,5 @@ class ParseResultKwargs(TypedDict, total=False):
     author: Author | None
     extra: dict[str, Any]
     repost: ParseResult | None
+    stats: Stats
+    comments: list[Comment]
