@@ -62,17 +62,15 @@ class TapTapParser(BaseParser):
         统一获取浏览器页面的上下文管理器
         屏蔽了本地池和标准池的调用差异
         """
-        if HAS_LOCAL_POOL:
-            # === 使用本地增强池 ===
+        if HAS_LOCAL_POOL and local_browser_pool and create_anti_captcha_config:
             proxy_config = None
-            if self.use_proxy and self.proxy_server:
+            if self.use_proxy and self.proxy_server and get_proxy_config:
                 proxy_config = get_proxy_config(
                     proxy_server=self.proxy_server,
                     proxy_username="",
                     proxy_password="",
                     use_proxy=True
                 )
-            # 配置防验证
             config = create_anti_captcha_config(
                 proxy=proxy_config,
                 headless=True
@@ -80,18 +78,18 @@ class TapTapParser(BaseParser):
             async with local_browser_pool.get_context_and_page(config) as (context, page):
                 yield page
         else:
-            # === 使用插件标准池 ===
-            async with standard_browser_pool.get_browser() as browser:
-                # 注入基础防检测特征
-                async with safe_browser_context(browser) as (context, page):
-                    await context.add_init_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined});")
-                    await context.add_init_script("Object.defineProperty(navigator, 'plugins', {get: () => [1, 2, 3, 4, 5]});")
-                    yield page
+            if standard_browser_pool and safe_browser_context:
+                async with standard_browser_pool.get_browser() as browser:
+                    async with safe_browser_context(browser) as (context, page):
+                        await context.add_init_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined});")
+                        await context.add_init_script("Object.defineProperty(navigator, 'plugins', {get: () => [1, 2, 3, 4, 5]});")
+                        yield page
+            else:
+                raise RuntimeError("No browser pool available")
 
     async def _simulate_human(self, page):
         """统一的人类行为模拟"""
-        if HAS_LOCAL_POOL:
-            # 使用本地工具库
+        if HAS_LOCAL_POOL and simulate_human_behavior:
             await simulate_human_behavior(page, ["scroll", "wait_random"])
         else:
             # 简单的模拟滚动

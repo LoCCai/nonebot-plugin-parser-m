@@ -17,9 +17,6 @@ from bs4.element import Tag, NavigableString
 
 from .answer import decoder as answerDecoder
 
-async def get_async_client():
-    return AsyncClient()
-
 INITIAL_DATA = re.compile(
     pattern=r'<script id="js-initialData" type="text/json">(.*?)</script>',
     flags=re.DOTALL,
@@ -42,15 +39,19 @@ class ZhiHuParser(BaseParser):
         data = await self.fetch_initial_state(url)
         question = data.initialState.entities.questions[question_id]
         answer = data.initialState.entities.answers[answer_id]
+        
+        soup = BeautifulSoup(answer.content.replace(r"\"", '"'), "html.parser")
+        excerpt = soup.get_text(strip=True)[:200]
+        
         return self.result(
             title=question.title.replace(r"\"", '"'),
-            text=answer.excerpt,
+            text=excerpt,
             contents=await self._parse_rich_content(answer.content),
             timestamp=answer.createdTime,
             url=f"https://www.zhihu.com/question/{question_id}/answer/{answer_id}",
             author=self.create_author(
                 name=answer.author.name,
-                avatar=answer.author.avatarUrl,
+                avatar_url=answer.author.avatarUrl,
                 description=answer.author.headline,
             ),
         )
@@ -66,7 +67,7 @@ class ZhiHuParser(BaseParser):
         return answerDecoder.decode(raw)
 
     async def fetch_video(self, video_id: str):
-        async with get_async_client() as client:
+        async with AsyncClient() as client:
             res = await client.post(
                 "https://www.zhihu.com/api/v4/video/play_info",
                 json={
