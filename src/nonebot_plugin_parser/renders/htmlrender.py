@@ -144,6 +144,24 @@ class HtmlRenderer(ImageRenderer):
                 logger.warning(f"获取图文内容路径失败: {e}")
         data["graphics_contents"] = graphics_contents
 
+        if result.stats:
+            data["stats"] = {
+                "like_count": result.stats.like_count,
+                "comment_count": result.stats.comment_count,
+                "share_count": result.stats.share_count,
+                "collect_count": result.stats.collect_count,
+                "view_count": result.stats.view_count,
+            }
+            if result.stats.extra:
+                data["stats"].update(result.stats.extra)
+
+        if result.comments:
+            comments = []
+            for comment in result.comments:
+                comment_data = await self._resolve_comment(comment)
+                comments.append(comment_data)
+            data["comments"] = comments
+
         if result.repost:
             data["repost"] = await self._resolve_parse_result(result.repost)
 
@@ -171,3 +189,44 @@ class HtmlRenderer(ImageRenderer):
             data["qr_code_path"] = f"data:image/png;base64,{img_base64}"
         
         return data
+
+    async def _resolve_comment(self, comment) -> dict[str, Any]:
+        """解析评论为模板可用的字典数据"""
+        comment_data: dict[str, Any] = {}
+        
+        if comment.author:
+            avatar_path = await comment.author.get_avatar_path()
+            comment_data["author"] = {
+                "name": comment.author.name,
+                "avatar_path": avatar_path.as_uri() if avatar_path else None,
+            }
+        
+        content_parts = []
+        for item in comment.content:
+            if isinstance(item, str):
+                content_parts.append(item)
+            elif hasattr(item, "get_path"):
+                try:
+                    path = await item.get_path()
+                    content_parts.append({"path": path.as_uri()})
+                except Exception as e:
+                    logger.warning(f"获取评论图片路径失败: {e}")
+        comment_data["content"] = content_parts
+        
+        comment_data["formatted_datetime"] = comment.formatted_datetime
+        comment_data["location"] = comment.location
+        
+        if comment.stats:
+            comment_data["stats"] = {
+                "like_count": comment.stats.like_count,
+                "comment_count": comment.stats.comment_count,
+            }
+        
+        if comment.replies:
+            replies = []
+            for reply in comment.replies:
+                reply_data = await self._resolve_comment(reply)
+                replies.append(reply_data)
+            comment_data["replies"] = replies
+        
+        return comment_data

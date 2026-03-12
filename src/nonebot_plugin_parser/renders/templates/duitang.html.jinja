@@ -474,10 +474,9 @@
         <div class="text">{{ result.text }}</div>
         {% endif %}
 
-        {% if result.img_contents %}
+        {% if result.img_contents and result.img_contents|length > 0 %}
         {% set imgs = result.img_contents %}
         {% set count = imgs|length %}
-        {% if count > 0 %}
         <div class="images-container">
             {% set grid_class = 'single' %}
             {% if count == 2 %}{% set grid_class = 'double' %}
@@ -497,7 +496,6 @@
                 {% endfor %}
             </div>
         </div>
-        {% endif %}
         {% endif %}
     </div>
 
