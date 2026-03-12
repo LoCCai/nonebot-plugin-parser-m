@@ -40,6 +40,12 @@ class DuiTangParser(BaseParser):
                 avatar_url=blog_data.sender.avatar,
             ),
             timestamp=blog_data.add_datetime_ts,
+            stats=self.create_stats(
+                like_count=format_num(blog_data.like_count),
+                collect_count=format_num(blog_data.favorite_count),
+                comment_count=format_num(blog_data.reply_count),
+            ),
+            comments=comments,
         )
 
     @handle("duitang.com/atlas", r"id=(?P<atlas_id>\d+)")
@@ -65,6 +71,13 @@ class DuiTangParser(BaseParser):
                 avatar_url=atlas_data.sender.avatar,
             ),
             timestamp=atlas_data.created_at // 1000,
+            stats=self.create_stats(
+                like_count=format_num(atlas_data.like_count),
+                collect_count=format_num(atlas_data.favorite_count),
+                comment_count=format_num(atlas_data.comment_count),
+                view_count=format_num(atlas_data.visit_count),
+            ),
+            comments=comments,
         )
 
     async def _fetch_atlas_detail(

@@ -51,8 +51,35 @@ class HeyBoxParser(BaseParser):
         async with AsyncClient(
             headers=self.headers,
             cookies={"x_xhh_tokenid": self.x_xhh_tokenid},
+            follow_redirects=False,
         ) as client:
             response = await client.get(build_url(link_id))
+            
+            if response.status_code == 302:
+                redirect_url = response.headers.get("location")
+                if redirect_url:
+                    from urllib.parse import urlparse, parse_qs
+                    
+                    parsed = urlparse(redirect_url)
+                    query_params = parse_qs(parsed.query)
+                    
+                    if "redirect_data" in query_params:
+                        import json
+                        from urllib.parse import unquote
+                        
+                        redirect_data_str = unquote(query_params["redirect_data"][0])
+                        redirect_data = json.loads(redirect_data_str)
+                        
+                        if "link" in redirect_data:
+                            link_data = redirect_data["link"]
+                            
+                            return self.result(
+                                title=link_data.get("title", ""),
+                                text=link_data.get("description", ""),
+                                url=f"https://www.xiaoheihe.cn/app/bbs/link/{link_id}",
+                                contents=self.create_image_contents([link_data["thumb"]]) if link_data.get("thumb") else [],
+                            )
+            
             response.raise_for_status()
             res = response.json()
 
@@ -62,7 +89,6 @@ class HeyBoxParser(BaseParser):
         data = convert(res["result"], BaseResult)
         comments = self._build_comments(data)
 
-        # 将 content 列表转换为字符串
         content_text = "\n".join(str(item) for item in data.link.content) if data.link.content else None
         
         return self.result(
